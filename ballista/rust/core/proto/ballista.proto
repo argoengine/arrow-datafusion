@@ -80,6 +80,10 @@ message LogicalExprNode {
 
     // window expressions
     WindowExprNode window_expr = 18;
+
+    //ArgoEngineAggregateUDF expressions
+    AggregateUDFExprNode aggregate_udf_expr = 19;
+
   }
 }
 
@@ -974,6 +978,14 @@ service SchedulerGrpc {
   rpc ExecuteQuery (ExecuteQueryParams) returns (ExecuteQueryResult) {}
 
   rpc GetJobStatus (GetJobStatusParams) returns (GetJobStatusResult) {}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// ArgoEngine add.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+message AggregateUDFExprNode {
+  string fun_name = 1;
+  repeated LogicalExprNode args = 2;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
