@@ -54,6 +54,8 @@ use std::{
     boxed,
     convert::{TryFrom, TryInto},
 };
+use std::sync::Arc;
+use datafusion::physical_plan::udaf::AggregateUDF;
 
 impl protobuf::IntervalUnit {
     pub fn from_arrow_interval_unit(interval_unit: &IntervalUnit) -> Self {
@@ -1079,7 +1081,24 @@ impl TryInto<protobuf::LogicalExprNode> for &Expr {
                 })
             }
             Expr::ScalarUDF { .. } => unimplemented!(),
-            Expr::AggregateUDF { .. } => unimplemented!(),
+            // argo engine add start
+            Expr::AggregateUDF { ref fun, ref args  } => {
+                let args: Vec<protobuf::LogicalExprNode> = args
+                    .iter()
+                    .map(|e| e.try_into())
+                    .collect::<Result<Vec<protobuf::LogicalExprNode>, BallistaError>>()?;
+                Ok(protobuf::LogicalExprNode {
+                    expr_type: Some(
+                        protobuf::logical_expr_node::ExprType::AggregateUdfExpr(
+                            protobuf::AggregateUdfExprNode {
+                                fun_name: fun.name.clone(),
+                                args,
+                            },
+                        ),
+                    ),
+                })
+            }
+            // argo engine add end
             Expr::Not(expr) => {
                 let expr = Box::new(protobuf::Not {
                     expr: Some(Box::new(expr.as_ref().try_into()?)),

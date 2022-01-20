@@ -32,10 +32,10 @@ sled = ["sled_package", "tokio-stream"]
 
 [dependencies]
 anyhow = "1"
-ballista-core = { path = "../core", version = "0.6.0" }
+ballista-core = { path = "../core"}
 clap = "2"
 configure_me = "0.4.0"
-datafusion = { path = "../../../datafusion", version = "6.0.0" }
+datafusion =  { git = "http://git.analysysdata.com/noah/arrow-datafusion.git", branch="1.0", package = "datafusion" }
 env_logger = "0.9"
 etcd-client = { version = "0.7", optional = true }
 futures = "0.3"
@@ -55,7 +55,7 @@ tower = { version = "0.4" }
 warp = "0.3"
 
 [dev-dependencies]
-ballista-core = { path = "../core", version = "0.6.0" }
+ballista-core = { path = "../core"}
 uuid = { version = "0.8", features = ["v4"] }
 
 [build-dependencies]

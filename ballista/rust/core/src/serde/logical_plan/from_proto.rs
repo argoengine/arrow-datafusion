@@ -17,6 +17,7 @@
 
 //! Serde code to convert from protocol buffers to Rust data structures.
 
+use argo_engine_common::udaf::argo_engine_udaf::from_name_to_udaf;
 use crate::error::BallistaError;
 use crate::serde::{from_proto_binary_op, proto_error, protobuf, str_to_byte};
 use crate::{convert_box_required, convert_required};
@@ -966,6 +967,26 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
                     distinct: false, //TODO
                 })
             }
+            // argo engine add start
+            ExprType::AggregateUdfExpr(expr) => {
+                let fun = from_name_to_udaf(expr.fun_name.as_str()).map_err(|e| {
+                    proto_error(format!(
+                        "from_proto error: {}",
+                        e
+                    ))
+                })?;
+                let fun_arc = Arc::new(fun);
+                let fun_args= &expr.args;
+                let args: Vec<Expr> = fun_args
+                    .iter()
+                    .map(|e| e.try_into())
+                    .collect::<Result<Vec<Expr>, BallistaError>>()?;
+                Ok(Expr::AggregateUDF {
+                    fun: fun_arc,
+                    args: args.try_into().unwrap(),
+                })
+            }
+            // argo engine add end
             ExprType::Alias(alias) => Ok(Expr::Alias(
                 Box::new(parse_required_expr(&alias.expr)?),
                 alias.alias.clone(),
@@ -1174,6 +1195,8 @@ use datafusion::prelude::{
     sha384, sha512, trim, upper,
 };
 use std::convert::TryFrom;
+use futures::TryFutureExt;
+use datafusion::physical_plan::udaf::AggregateUDF;
 
 impl TryFrom<i32> for protobuf::FileType {
     type Error = BallistaError;
