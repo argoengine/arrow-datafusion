@@ -521,6 +521,10 @@ message PhysicalExprNode {
 
     // window expressions
     PhysicalWindowExprNode window_expr = 15;
+
+    // argo engine add.
+    PhysicalAggregateUDFExprNode aggregate_udf_expr = 16;
+    // argo engine add end.
   }
 }
 
@@ -528,6 +532,13 @@ message PhysicalAggregateExprNode {
   AggregateFunction aggr_function = 1;
   PhysicalExprNode expr = 2;
 }
+
+// argo engine add.
+message PhysicalAggregateUDFExprNode {
+  string fun_name = 1;
+  PhysicalExprNode expr = 2;
+}
+// argo engine add end.
 
 message PhysicalWindowExprNode {
   oneof window_function {

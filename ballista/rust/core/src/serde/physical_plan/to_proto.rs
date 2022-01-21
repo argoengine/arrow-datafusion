@@ -74,6 +74,7 @@ use crate::{
 use datafusion::physical_plan::coalesce_partitions::CoalescePartitionsExec;
 use datafusion::physical_plan::functions::{BuiltinScalarFunction, ScalarFunctionExpr};
 use datafusion::physical_plan::repartition::RepartitionExec;
+use datafusion::physical_plan::udaf::AggregateFunctionExpr;
 
 impl TryInto<protobuf::PhysicalPlanNode> for Arc<dyn ExecutionPlan> {
     type Error = BallistaError;
@@ -412,35 +413,49 @@ impl TryInto<protobuf::PhysicalExprNode> for Arc<dyn AggregateExpr> {
     type Error = BallistaError;
 
     fn try_into(self) -> Result<protobuf::PhysicalExprNode, Self::Error> {
-        let aggr_function = if self.as_any().downcast_ref::<Avg>().is_some() {
-            Ok(protobuf::AggregateFunction::Avg.into())
-        } else if self.as_any().downcast_ref::<Sum>().is_some() {
-            Ok(protobuf::AggregateFunction::Sum.into())
-        } else if self.as_any().downcast_ref::<Count>().is_some() {
-            Ok(protobuf::AggregateFunction::Count.into())
-        } else if self.as_any().downcast_ref::<Min>().is_some() {
-            Ok(protobuf::AggregateFunction::Min.into())
-        } else if self.as_any().downcast_ref::<Max>().is_some() {
-            Ok(protobuf::AggregateFunction::Max.into())
-        } else {
-            Err(BallistaError::NotImplemented(format!(
-                "Aggregate function not supported: {:?}",
-                self
-            )))
-        }?;
+        // argo engine add.
+        // aggregate udf
         let expressions: Vec<protobuf::PhysicalExprNode> = self
             .expressions()
             .iter()
             .map(|e| e.clone().try_into())
             .collect::<Result<Vec<_>, BallistaError>>()?;
-        Ok(protobuf::PhysicalExprNode {
-            expr_type: Some(protobuf::physical_expr_node::ExprType::AggregateExpr(
-                Box::new(protobuf::PhysicalAggregateExprNode {
-                    aggr_function,
-                    expr: Some(Box::new(expressions[0].clone())),
-                }),
-            )),
-        })
+        if self.as_any().downcast_ref::<AggregateFunctionExpr>().is_some() {
+            let name = self.name();
+            Ok(protobuf::PhysicalExprNode {
+                expr_type: Some(protobuf::physical_expr_node::ExprType::AggregateUdfExpr(
+                    Box::new(protobuf::PhysicalAggregateUdfExprNode {
+                        fun_name: name.to_string(),
+                        expr: Some(Box::new(expressions[0].clone())),
+                    }),
+                )),
+            })
+        } else {
+            let aggr_function = if self.as_any().downcast_ref::<Avg>().is_some() {
+                Ok(protobuf::AggregateFunction::Avg.into())
+            } else if self.as_any().downcast_ref::<Sum>().is_some() {
+                Ok(protobuf::AggregateFunction::Sum.into())
+            } else if self.as_any().downcast_ref::<Count>().is_some() {
+                Ok(protobuf::AggregateFunction::Count.into())
+            } else if self.as_any().downcast_ref::<Min>().is_some() {
+                Ok(protobuf::AggregateFunction::Min.into())
+            } else if self.as_any().downcast_ref::<Max>().is_some() {
+                Ok(protobuf::AggregateFunction::Max.into())
+            } else {
+                Err(BallistaError::NotImplemented(format!(
+                    "Aggregate function not supported: {:?}",
+                    self
+                )))
+            }?;
+            Ok(protobuf::PhysicalExprNode {
+                expr_type: Some(protobuf::physical_expr_node::ExprType::AggregateExpr(
+                    Box::new(protobuf::PhysicalAggregateExprNode {
+                        aggr_function,
+                        expr: Some(Box::new(expressions[0].clone())),
+                    }),
+                )),
+            })
+        }
     }
 }
 
