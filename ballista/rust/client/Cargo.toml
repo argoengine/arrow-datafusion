@@ -34,7 +34,7 @@ futures = "0.3"
 log = "0.4"
 tokio = "1.0"
 
-datafusion = { path = "../../../datafusion"}
+datafusion =  { git = "http://git.analysysdata.com/noah/arrow-datafusion.git", branch="1.0", package = "datafusion" }
 
 [features]
 default = []
