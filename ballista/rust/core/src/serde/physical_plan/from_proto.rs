@@ -17,6 +17,7 @@
 
 //! Serde code to convert from protocol buffers to Rust data structures.
 
+use argo_engine_common::udaf::argo_engine_udaf::from_name_to_udaf;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::sync::Arc;
@@ -55,6 +56,7 @@ use datafusion::physical_plan::hash_join::PartitionMode;
 use datafusion::physical_plan::metrics::ExecutionPlanMetricsSet;
 use datafusion::physical_plan::planner::DefaultPhysicalPlanner;
 use datafusion::physical_plan::sorts::sort::{SortExec, SortOptions};
+use datafusion::physical_plan::udaf::create_aggregate_expr as create_aggregate_udf_expr;
 use datafusion::physical_plan::window_functions::{
     BuiltInWindowFunction, WindowFunction,
 };
@@ -311,6 +313,21 @@ impl TryInto<Arc<dyn ExecutionPlan>> for &protobuf::PhysicalPlanNode {
                                     name.to_string(),
                                 )?)
                             }
+                            ExprType::AggregateUdfExpr(agg_node) => {
+                                let name = agg_node.fun_name.as_str();
+                                let fun = from_name_to_udaf(name).map_err(|e| {
+                                    proto_error(format!(
+                                        "from_proto error: {}",
+                                        e
+                                    ))
+                                })?;
+                                Ok(create_aggregate_udf_expr(
+                                    &fun,
+                                    &[convert_box_required!(agg_node.expr)?],
+                                    &physical_schema,
+                                    name.to_string(),
+                                )?)
+                            }
                             _ => Err(BallistaError::General(
                                 "Invalid aggregate  expression for HashAggregateExec"
                                     .to_string(),
@@ -542,6 +559,12 @@ impl TryFrom<&protobuf::PhysicalExprNode> for Arc<dyn PhysicalExpr> {
             ExprType::AggregateExpr(_) => {
                 return Err(BallistaError::General(
                     "Cannot convert aggregate expr node to physical expression"
+                        .to_owned(),
+                ));
+            }
+            ExprType::AggregateUdfExpr(_) => {
+                return Err(BallistaError::General(
+                    "Cannot convert aggregate udf expr node to physical expression"
                         .to_owned(),
                 ));
             }
