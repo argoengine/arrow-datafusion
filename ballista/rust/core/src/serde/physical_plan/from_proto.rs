@@ -32,6 +32,7 @@ use crate::serde::scheduler::PartitionLocation;
 use crate::serde::{from_proto_binary_op, proto_error, protobuf, str_to_byte};
 use crate::{convert_box_required, convert_required, into_required};
 use chrono::{TimeZone, Utc};
+use datafusion::arrow::compute::eq_dyn;
 use datafusion::arrow::datatypes::{DataType, Schema, SchemaRef};
 use datafusion::catalog::catalog::{
     CatalogList, CatalogProvider, MemoryCatalogList, MemoryCatalogProvider,
@@ -321,9 +322,15 @@ impl TryInto<Arc<dyn ExecutionPlan>> for &protobuf::PhysicalPlanNode {
                                         e
                                     ))
                                 })?;
+
+                                let args: Vec<Arc<dyn PhysicalExpr>> = agg_node.expr
+                                    .iter()
+                                    .map(|e| e.try_into())
+                                    .collect::<Result<Vec<_>, BallistaError>>()?;
+
                                 Ok(create_aggregate_udf_expr(
                                     &fun,
-                                    &[convert_box_required!(agg_node.expr)?],
+                                    &args,
                                     &physical_schema,
                                     name.to_string(),
                                 )?)

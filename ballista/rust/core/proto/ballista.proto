@@ -536,7 +536,7 @@ message PhysicalAggregateExprNode {
 // argo engine add.
 message PhysicalAggregateUDFExprNode {
   string fun_name = 1;
-  PhysicalExprNode expr = 2;
+  repeated PhysicalExprNode expr = 2;
 }
 // argo engine add end.
 
