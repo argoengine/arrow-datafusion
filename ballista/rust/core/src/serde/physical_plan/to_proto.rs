@@ -425,10 +425,10 @@ impl TryInto<protobuf::PhysicalExprNode> for Arc<dyn AggregateExpr> {
             let udaf_fun_name = &name[0..name.find('(').unwrap()];
             Ok(protobuf::PhysicalExprNode {
                 expr_type: Some(protobuf::physical_expr_node::ExprType::AggregateUdfExpr(
-                    Box::new(protobuf::PhysicalAggregateUdfExprNode {
+                    protobuf::PhysicalAggregateUdfExprNode {
                         fun_name: udaf_fun_name.to_string(),
-                        expr: Some(Box::new(expressions[0].clone())),
-                    }),
+                        expr: expressions.clone(),
+                    },
                 )),
             })
         } else {
