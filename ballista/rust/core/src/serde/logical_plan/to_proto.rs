@@ -41,6 +41,7 @@ use datafusion::logical_plan::{
 };
 use datafusion::physical_plan::aggregates::AggregateFunction;
 use datafusion::physical_plan::functions::BuiltinScalarFunction;
+use datafusion::physical_plan::udaf::AggregateUDF;
 use datafusion::physical_plan::window_functions::{
     BuiltInWindowFunction, WindowFunction,
 };
@@ -50,12 +51,11 @@ use protobuf::{
     arrow_type, logical_expr_node::ExprType, scalar_type, DateUnit, PrimitiveScalarType,
     ScalarListValue, ScalarType,
 };
+use std::sync::Arc;
 use std::{
     boxed,
     convert::{TryFrom, TryInto},
 };
-use std::sync::Arc;
-use datafusion::physical_plan::udaf::AggregateUDF;
 
 impl protobuf::IntervalUnit {
     pub fn from_arrow_interval_unit(interval_unit: &IntervalUnit) -> Self {
@@ -565,6 +565,52 @@ impl TryFrom<&datafusion::scalar::ScalarValue> for protobuf::ScalarValue {
                     Value::TimeNanosecondValue(*s)
                 })
             }
+
+            // argo engine add.
+            datafusion::scalar::ScalarValue::Decimal128(val, p, s) => {
+                match *val {
+                    Some(v) => {
+                        protobuf::ScalarValue {
+                            value: Some(Value::Decimal128Value(protobuf::Decimal128 {
+                                value: v.to_string(),
+                                p: *p as i64,
+                                s: *s as i64,
+                            })),
+                        }
+                    }
+                    None => {
+                        protobuf::ScalarValue {
+                            value: Some(protobuf::scalar_value::Value::NullValue(PrimitiveScalarType::Decimal128 as i32))
+                        }
+                    }
+                }
+            }
+            datafusion::scalar::ScalarValue::Date64(val) => {
+                create_proto_scalar(val, PrimitiveScalarType::Date64, |s| {
+                    Value::Date64Value(*s)
+                })
+            }
+            datafusion::scalar::ScalarValue::TimestampSecond(val, _) => {
+                create_proto_scalar(val, PrimitiveScalarType::TimeSecond, |s| {
+                    Value::TimeSecondValue(*s)
+                })
+            }
+            datafusion::scalar::ScalarValue::TimestampMillisecond(val, _) => {
+                create_proto_scalar(val, PrimitiveScalarType::TimeMillisecond, |s| {
+                    Value::TimeMillisecondValue(*s)
+                })
+            }
+            datafusion::scalar::ScalarValue::IntervalYearMonth(val) => {
+                create_proto_scalar(val, PrimitiveScalarType::IntervalYearmonth, |s| {
+                    Value::IntervalYearmonthValue(*s)
+                })
+            }
+            datafusion::scalar::ScalarValue::IntervalDayTime(val) => {
+                create_proto_scalar(val, PrimitiveScalarType::IntervalDaytime, |s| {
+                    Value::IntervalDaytimeValue(*s)
+                })
+            }
+            // argo engine add end.
             _ => {
                 return Err(proto_error(format!(
                     "Error converting to Datatype to scalar type, {:?} is invalid as a datafusion scalar.",
@@ -1082,7 +1128,7 @@ impl TryInto<protobuf::LogicalExprNode> for &Expr {
             }
             Expr::ScalarUDF { .. } => unimplemented!(),
             // argo engine add start
-            Expr::AggregateUDF { ref fun, ref args  } => {
+            Expr::AggregateUDF { ref fun, ref args } => {
                 let args: Vec<protobuf::LogicalExprNode> = args
                     .iter()
                     .map(|e| e.try_into())
