@@ -316,7 +316,8 @@ impl TryInto<Arc<dyn ExecutionPlan>> for &protobuf::PhysicalPlanNode {
                             }
                             ExprType::AggregateUdfExpr(agg_node) => {
                                 let name = agg_node.fun_name.as_str();
-                                let fun = from_name_to_udaf(name).map_err(|e| {
+                                let udaf_fun_name = &name[0..name.find('(').unwrap()];
+                                let fun = from_name_to_udaf(udaf_fun_name).map_err(|e| {
                                     proto_error(format!(
                                         "from_proto error: {}",
                                         e

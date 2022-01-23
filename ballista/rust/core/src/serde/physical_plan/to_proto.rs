@@ -422,11 +422,10 @@ impl TryInto<protobuf::PhysicalExprNode> for Arc<dyn AggregateExpr> {
             .collect::<Result<Vec<_>, BallistaError>>()?;
         if self.as_any().downcast_ref::<AggregateFunctionExpr>().is_some() {
             let name = self.name().to_string();
-            let udaf_fun_name = &name[0..name.find('(').unwrap()];
             Ok(protobuf::PhysicalExprNode {
                 expr_type: Some(protobuf::physical_expr_node::ExprType::AggregateUdfExpr(
                     protobuf::PhysicalAggregateUdfExprNode {
-                        fun_name: udaf_fun_name.to_string(),
+                        fun_name: name.to_string(),
                         expr: expressions.clone(),
                     },
                 )),
