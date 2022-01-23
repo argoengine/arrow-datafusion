@@ -17,10 +17,10 @@
 
 //! Serde code to convert from protocol buffers to Rust data structures.
 
-use argo_engine_common::udaf::argo_engine_udaf::from_name_to_udaf;
 use crate::error::BallistaError;
 use crate::serde::{from_proto_binary_op, proto_error, protobuf, str_to_byte};
 use crate::{convert_box_required, convert_required};
+use argo_engine_common::udaf::argo_engine_udaf::from_name_to_udaf;
 use datafusion::arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use datafusion::datasource::file_format::avro::AvroFormat;
 use datafusion::datasource::file_format::csv::CsvFormat;
@@ -541,12 +541,46 @@ fn typechecked_scalar_value_conversion(
                             "Untyped scalar null is not a valid scalar value",
                         ))
                     }
+
+                    // argo engine add.
+                    PrimitiveScalarType::Decimal128 => ScalarValue::Decimal128(None, 0, 0),
+                    PrimitiveScalarType::Date64 => ScalarValue::Date64(None),
+                    PrimitiveScalarType::TimeSecond => ScalarValue::TimestampSecond(None, None),
+                    PrimitiveScalarType::TimeMillisecond => ScalarValue::TimestampMillisecond(None, None),
+                    PrimitiveScalarType::IntervalYearmonth => ScalarValue::IntervalYearMonth(None),
+                    PrimitiveScalarType::IntervalDaytime => ScalarValue::IntervalDayTime(None),
+                    // argo engine add end.
                 };
                 scalar_value
             } else {
                 return Err(proto_error("Could not convert to the proper type"));
             }
         }
+
+        // argo engine add.
+        (Value::Decimal128Value(val), PrimitiveScalarType::Decimal128) => {
+            ScalarValue::Decimal128(
+                Some(val.value.parse::<i128>().unwrap()),
+                val.p as usize,
+                val.s as usize,
+            )
+        }
+        (Value::Date64Value(v), PrimitiveScalarType::Date64) => {
+            ScalarValue::Date64(Some(*v))
+        }
+        (Value::TimeSecondValue(v), PrimitiveScalarType::TimeSecond) => {
+            ScalarValue::TimestampSecond(Some(*v), None)
+        }
+        (Value::TimeMillisecondValue(v), PrimitiveScalarType::TimeMillisecond) => {
+            ScalarValue::TimestampMillisecond(Some(*v), None)
+        }
+        (Value::IntervalYearmonthValue(v), PrimitiveScalarType::IntervalYearmonth) => {
+            ScalarValue::IntervalYearMonth(Some(*v))
+        }
+        (Value::IntervalDaytimeValue(v), PrimitiveScalarType::IntervalDaytime) => {
+            ScalarValue::IntervalDayTime(Some(*v))
+        }
+        // argo engine add end.
         _ => return Err(proto_error("Could not convert to the proper type")),
     })
 }
@@ -608,6 +642,30 @@ impl TryInto<datafusion::scalar::ScalarValue> for &protobuf::scalar_value::Value
                     .ok_or_else(|| proto_error("Invalid scalar type"))?
                     .try_into()?
             }
+
+            //argo engine add.
+            protobuf::scalar_value::Value::Decimal128Value(val) => {
+                ScalarValue::Decimal128(
+                    Some(val.value.parse::<i128>().unwrap()),
+                    val.p as usize,
+                    val.s as usize,
+                )
+            }
+            protobuf::scalar_value::Value::Date64Value(v) => {
+                ScalarValue::Date64(Some(*v))
+            }
+            protobuf::scalar_value::Value::TimeSecondValue(v) => {
+                ScalarValue::TimestampSecond(Some(*v), None)
+            }
+            protobuf::scalar_value::Value::TimeMillisecondValue(v) => {
+                ScalarValue::TimestampMillisecond(Some(*v), None)
+            }
+            protobuf::scalar_value::Value::IntervalYearmonthValue(v) => {
+                ScalarValue::IntervalYearMonth(Some(*v))
+            }
+            protobuf::scalar_value::Value::IntervalDaytimeValue(v) => {
+                ScalarValue::IntervalDayTime(Some(*v))
+            } //argo engine add end.
         };
         Ok(scalar)
     }
@@ -764,6 +822,14 @@ impl TryInto<datafusion::scalar::ScalarValue> for protobuf::PrimitiveScalarType 
             protobuf::PrimitiveScalarType::TimeNanosecond => {
                 ScalarValue::TimestampNanosecond(None, None)
             }
+            // argo engine add.
+            protobuf::PrimitiveScalarType::Decimal128 => ScalarValue::Decimal128(None, 0, 0),
+            protobuf::PrimitiveScalarType::Date64 => ScalarValue::Date64(None),
+            protobuf::PrimitiveScalarType::TimeSecond => ScalarValue::TimestampSecond(None, None),
+            protobuf::PrimitiveScalarType::TimeMillisecond => ScalarValue::TimestampMillisecond(None, None),
+            protobuf::PrimitiveScalarType::IntervalYearmonth => ScalarValue::IntervalYearMonth(None),
+            protobuf::PrimitiveScalarType::IntervalDaytime => ScalarValue::IntervalDayTime(None),
+            // argo engine add end.
         })
     }
 }
@@ -846,6 +912,30 @@ impl TryInto<datafusion::scalar::ScalarValue> for &protobuf::ScalarValue {
                     .ok_or_else(|| proto_error("Protobuf deserialization error found invalid enum variant for DatafusionScalar"))?;
                 null_type_enum.try_into()?
             }
+
+            //argo engine add.
+            protobuf::scalar_value::Value::Decimal128Value(val) => {
+                ScalarValue::Decimal128(
+                    Some(val.value.parse::<i128>().unwrap()),
+                    val.p as usize,
+                    val.s as usize,
+                )
+            }
+            protobuf::scalar_value::Value::Date64Value(v) => {
+                ScalarValue::Date64(Some(*v))
+            }
+            protobuf::scalar_value::Value::TimeSecondValue(v) => {
+                ScalarValue::TimestampSecond(Some(*v), None)
+            }
+            protobuf::scalar_value::Value::TimeMillisecondValue(v) => {
+                ScalarValue::TimestampMillisecond(Some(*v), None)
+            }
+            protobuf::scalar_value::Value::IntervalYearmonthValue(v) => {
+                ScalarValue::IntervalYearMonth(Some(*v))
+            }
+            protobuf::scalar_value::Value::IntervalDaytimeValue(v) => {
+                ScalarValue::IntervalDayTime(Some(*v))
+            } //argo engine add end.
         })
     }
 }
@@ -969,14 +1059,10 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
             }
             // argo engine add start
             ExprType::AggregateUdfExpr(expr) => {
-                let fun = from_name_to_udaf(expr.fun_name.as_str()).map_err(|e| {
-                    proto_error(format!(
-                        "from_proto error: {}",
-                        e
-                    ))
-                })?;
+                let fun = from_name_to_udaf(expr.fun_name.as_str())
+                    .map_err(|e| proto_error(format!("from_proto error: {}", e)))?;
                 let fun_arc = Arc::new(fun);
-                let fun_args= &expr.args;
+                let fun_args = &expr.args;
                 let args: Vec<Expr> = fun_args
                     .iter()
                     .map(|e| e.try_into())
@@ -1189,14 +1275,14 @@ impl TryInto<Field> for &protobuf::Field {
 }
 
 use crate::serde::protobuf::ColumnStats;
+use datafusion::physical_plan::udaf::AggregateUDF;
 use datafusion::physical_plan::{aggregates, windows};
 use datafusion::prelude::{
     array, date_part, date_trunc, length, lower, ltrim, md5, rtrim, sha224, sha256,
     sha384, sha512, trim, upper,
 };
-use std::convert::TryFrom;
 use futures::TryFutureExt;
-use datafusion::physical_plan::udaf::AggregateUDF;
+use std::convert::TryFrom;
 
 impl TryFrom<i32> for protobuf::FileType {
     type Error = BallistaError;
