@@ -328,8 +328,7 @@ impl Into<datafusion::arrow::datatypes::DataType> for protobuf::PrimitiveScalarT
             }
             protobuf::PrimitiveScalarType::IntervalDaytime => {
                 DataType::Interval(IntervalUnit::DayTime)
-            }
-            // argo engine add end.
+            } // argo engine add end.
         }
     }
 }
