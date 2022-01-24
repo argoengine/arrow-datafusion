@@ -560,8 +560,7 @@ fn typechecked_scalar_value_conversion(
                     }
                     PrimitiveScalarType::IntervalDaytime => {
                         ScalarValue::IntervalDayTime(None)
-                    }
-                    // argo engine add end.
+                    } // argo engine add end.
                 };
                 scalar_value
             } else {
@@ -592,8 +591,7 @@ fn typechecked_scalar_value_conversion(
         }
         (Value::IntervalDaytimeValue(v), PrimitiveScalarType::IntervalDaytime) => {
             ScalarValue::IntervalDayTime(Some(*v))
-        }
-        // argo engine add end.
+        } // argo engine add end.
         _ => return Err(proto_error("Could not convert to the proper type")),
     })
 }
@@ -852,8 +850,7 @@ impl TryInto<datafusion::scalar::ScalarValue> for protobuf::PrimitiveScalarType 
             }
             protobuf::PrimitiveScalarType::IntervalDaytime => {
                 ScalarValue::IntervalDayTime(None)
-            }
-            // argo engine add end.
+            } // argo engine add end.
         })
     }
 }
@@ -1096,8 +1093,7 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
                     fun: fun_arc,
                     args: args.try_into().unwrap(),
                 })
-            }
-            // argo engine add end
+            } // argo engine add end
             ExprType::Alias(alias) => Ok(Expr::Alias(
                 Box::new(parse_required_expr(&alias.expr)?),
                 alias.alias.clone(),

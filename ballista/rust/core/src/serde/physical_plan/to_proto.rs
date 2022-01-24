@@ -420,15 +420,21 @@ impl TryInto<protobuf::PhysicalExprNode> for Arc<dyn AggregateExpr> {
             .iter()
             .map(|e| e.clone().try_into())
             .collect::<Result<Vec<_>, BallistaError>>()?;
-        if self.as_any().downcast_ref::<AggregateFunctionExpr>().is_some() {
+        if self
+            .as_any()
+            .downcast_ref::<AggregateFunctionExpr>()
+            .is_some()
+        {
             let name = self.name().to_string();
             Ok(protobuf::PhysicalExprNode {
-                expr_type: Some(protobuf::physical_expr_node::ExprType::AggregateUdfExpr(
-                    protobuf::PhysicalAggregateUdfExprNode {
-                        fun_name: name.to_string(),
-                        expr: expressions.clone(),
-                    },
-                )),
+                expr_type: Some(
+                    protobuf::physical_expr_node::ExprType::AggregateUdfExpr(
+                        protobuf::PhysicalAggregateUdfExprNode {
+                            fun_name: name.to_string(),
+                            expr: expressions.clone(),
+                        },
+                    ),
+                ),
             })
         } else {
             let aggr_function = if self.as_any().downcast_ref::<Avg>().is_some() {
