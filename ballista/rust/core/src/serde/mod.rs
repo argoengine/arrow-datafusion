@@ -315,12 +315,20 @@ impl Into<datafusion::arrow::datatypes::DataType> for protobuf::PrimitiveScalarT
             }
             protobuf::PrimitiveScalarType::Null => DataType::Null,
             // argo engine add.
-            protobuf::PrimitiveScalarType::Decimal128  => DataType::Decimal( 0, 0),
+            protobuf::PrimitiveScalarType::Decimal128 => DataType::Decimal(0, 0),
             protobuf::PrimitiveScalarType::Date64 => DataType::Date64,
-            protobuf::PrimitiveScalarType::TimeSecond => DataType::Timestamp(TimeUnit::Second, None),
-            protobuf::PrimitiveScalarType::TimeMillisecond => DataType::Timestamp(TimeUnit::Millisecond, None),
-            protobuf::PrimitiveScalarType::IntervalYearmonth => DataType::Interval(IntervalUnit::YearMonth),
-            protobuf::PrimitiveScalarType::IntervalDaytime => DataType::Interval(IntervalUnit::DayTime),
+            protobuf::PrimitiveScalarType::TimeSecond => {
+                DataType::Timestamp(TimeUnit::Second, None)
+            }
+            protobuf::PrimitiveScalarType::TimeMillisecond => {
+                DataType::Timestamp(TimeUnit::Millisecond, None)
+            }
+            protobuf::PrimitiveScalarType::IntervalYearmonth => {
+                DataType::Interval(IntervalUnit::YearMonth)
+            }
+            protobuf::PrimitiveScalarType::IntervalDaytime => {
+                DataType::Interval(IntervalUnit::DayTime)
+            }
             // argo engine add end.
         }
     }
@@ -382,4 +390,10 @@ fn str_to_byte(s: &str) -> Result<u8, BallistaError> {
         return Err(BallistaError::General("Invalid CSV delimiter".to_owned()));
     }
     Ok(s.as_bytes()[0])
+}
+
+fn vec_to_array<T, const N: usize>(v: Vec<T>) -> [T; N] {
+    v.try_into().unwrap_or_else(|v: Vec<T>| {
+        panic!("Expected a Vec of length {} but it was {}", N, v.len())
+    })
 }

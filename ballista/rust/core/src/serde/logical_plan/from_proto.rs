@@ -18,7 +18,9 @@
 //! Serde code to convert from protocol buffers to Rust data structures.
 
 use crate::error::BallistaError;
-use crate::serde::{from_proto_binary_op, proto_error, protobuf, str_to_byte};
+use crate::serde::{
+    from_proto_binary_op, proto_error, protobuf, str_to_byte, vec_to_array,
+};
 use crate::{convert_box_required, convert_required};
 use argo_engine_common::udaf::argo_engine_udaf::from_name_to_udaf;
 use datafusion::arrow::datatypes::{DataType, Field, Schema, TimeUnit};
@@ -543,12 +545,22 @@ fn typechecked_scalar_value_conversion(
                     }
 
                     // argo engine add.
-                    PrimitiveScalarType::Decimal128 => ScalarValue::Decimal128(None, 0, 0),
+                    PrimitiveScalarType::Decimal128 => {
+                        ScalarValue::Decimal128(None, 0, 0)
+                    }
                     PrimitiveScalarType::Date64 => ScalarValue::Date64(None),
-                    PrimitiveScalarType::TimeSecond => ScalarValue::TimestampSecond(None, None),
-                    PrimitiveScalarType::TimeMillisecond => ScalarValue::TimestampMillisecond(None, None),
-                    PrimitiveScalarType::IntervalYearmonth => ScalarValue::IntervalYearMonth(None),
-                    PrimitiveScalarType::IntervalDaytime => ScalarValue::IntervalDayTime(None),
+                    PrimitiveScalarType::TimeSecond => {
+                        ScalarValue::TimestampSecond(None, None)
+                    }
+                    PrimitiveScalarType::TimeMillisecond => {
+                        ScalarValue::TimestampMillisecond(None, None)
+                    }
+                    PrimitiveScalarType::IntervalYearmonth => {
+                        ScalarValue::IntervalYearMonth(None)
+                    }
+                    PrimitiveScalarType::IntervalDaytime => {
+                        ScalarValue::IntervalDayTime(None)
+                    }
                     // argo engine add end.
                 };
                 scalar_value
@@ -559,8 +571,9 @@ fn typechecked_scalar_value_conversion(
 
         // argo engine add.
         (Value::Decimal128Value(val), PrimitiveScalarType::Decimal128) => {
+            let array = vec_to_array(val.value.clone());
             ScalarValue::Decimal128(
-                Some(val.value.parse::<i128>().unwrap()),
+                Some(i128::from_be_bytes(array)),
                 val.p as usize,
                 val.s as usize,
             )
@@ -645,8 +658,9 @@ impl TryInto<datafusion::scalar::ScalarValue> for &protobuf::scalar_value::Value
 
             //argo engine add.
             protobuf::scalar_value::Value::Decimal128Value(val) => {
+                let array = vec_to_array(val.value.clone());
                 ScalarValue::Decimal128(
-                    Some(val.value.parse::<i128>().unwrap()),
+                    Some(i128::from_be_bytes(array)),
                     val.p as usize,
                     val.s as usize,
                 )
@@ -823,12 +837,22 @@ impl TryInto<datafusion::scalar::ScalarValue> for protobuf::PrimitiveScalarType 
                 ScalarValue::TimestampNanosecond(None, None)
             }
             // argo engine add.
-            protobuf::PrimitiveScalarType::Decimal128 => ScalarValue::Decimal128(None, 0, 0),
+            protobuf::PrimitiveScalarType::Decimal128 => {
+                ScalarValue::Decimal128(None, 0, 0)
+            }
             protobuf::PrimitiveScalarType::Date64 => ScalarValue::Date64(None),
-            protobuf::PrimitiveScalarType::TimeSecond => ScalarValue::TimestampSecond(None, None),
-            protobuf::PrimitiveScalarType::TimeMillisecond => ScalarValue::TimestampMillisecond(None, None),
-            protobuf::PrimitiveScalarType::IntervalYearmonth => ScalarValue::IntervalYearMonth(None),
-            protobuf::PrimitiveScalarType::IntervalDaytime => ScalarValue::IntervalDayTime(None),
+            protobuf::PrimitiveScalarType::TimeSecond => {
+                ScalarValue::TimestampSecond(None, None)
+            }
+            protobuf::PrimitiveScalarType::TimeMillisecond => {
+                ScalarValue::TimestampMillisecond(None, None)
+            }
+            protobuf::PrimitiveScalarType::IntervalYearmonth => {
+                ScalarValue::IntervalYearMonth(None)
+            }
+            protobuf::PrimitiveScalarType::IntervalDaytime => {
+                ScalarValue::IntervalDayTime(None)
+            }
             // argo engine add end.
         })
     }
@@ -915,8 +939,9 @@ impl TryInto<datafusion::scalar::ScalarValue> for &protobuf::ScalarValue {
 
             //argo engine add.
             protobuf::scalar_value::Value::Decimal128Value(val) => {
+                let array = vec_to_array(val.value.clone());
                 ScalarValue::Decimal128(
-                    Some(i128::from_be_bytes(val.value)),
+                    Some(i128::from_be_bytes(array)),
                     val.p as usize,
                     val.s as usize,
                 )
