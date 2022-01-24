@@ -916,7 +916,7 @@ impl TryInto<datafusion::scalar::ScalarValue> for &protobuf::ScalarValue {
             //argo engine add.
             protobuf::scalar_value::Value::Decimal128Value(val) => {
                 ScalarValue::Decimal128(
-                    Some(val.value.parse::<i128>().unwrap()),
+                    Some(i128::from_be_bytes(val.value)),
                     val.p as usize,
                     val.s as usize,
                 )
