@@ -620,7 +620,7 @@ impl TryFrom<Arc<dyn PhysicalExpr>> for protobuf::PhysicalExprNode {
                 )),
             })
         } else if let Some(expr) = expr.downcast_ref::<ScalarUDFExpr>() {
-            let fun: ScalarUDF = expr.fun.clone();
+            let fun: ScalarUDF = expr.;
             let args: Vec<protobuf::PhysicalExprNode> = expr
                 .args()
                 .iter()

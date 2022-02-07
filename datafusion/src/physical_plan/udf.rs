@@ -143,6 +143,39 @@ pub struct ScalarUDFExpr {
     return_type: DataType,
 }
 
+impl ScalarUDFExpr {
+    pub fn new(
+        name: &str,
+        fun: ScalarUDF,
+        args: Vec<Arc<dyn PhysicalExpr>>,
+        return_type: &DataType,
+    ) -> Self {
+        Self {
+            fun,
+            name: name.to_string(),
+            args,
+            return_type: return_type.clone(),
+        }
+    }
+
+    pub fn fun(&self) -> &ScalarUDF {
+        &self.fun
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn args(&self) -> &[Arc<dyn PhysicalExpr>] {
+        &self.args
+    }
+
+    /// Data type produced by this expression
+    pub fn return_type(&self) -> &DataType {
+        &self.return_type
+    }
+}
+
 impl fmt::Display for ScalarUDFExpr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
