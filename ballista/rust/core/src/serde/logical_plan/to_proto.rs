@@ -1129,22 +1129,22 @@ impl TryInto<protobuf::LogicalExprNode> for &Expr {
                 })
             }
             // argo engine add start
-            // Expr::ScalarUDF { ref fun, ref args } => {
-            //     let args: Vec<protobuf::LogicalExprNode> = args
-            //         .iter()
-            //         .map(|e| e.try_into())
-            //         .collect::<Result<Vec<protobuf::LogicalExprNode>, BallistaError>>()?;
-            //     Ok(protobuf::LogicalExprNode {
-            //         expr_type: Some(
-            //             protobuf::logical_expr_node::ExprType::ScalarUDFExpr(
-            //                 protobuf::ScalarUDFExprNode {
-            //                     fun_name: fun.name.clone(),
-            //                     args,
-            //                 },
-            //             ),
-            //         ),
-            //     })
-            // }
+            Expr::ScalarUDF { ref fun, ref args } => {
+                let args: Vec<protobuf::LogicalExprNode> = args
+                    .iter()
+                    .map(|e| e.try_into())
+                    .collect::<Result<Vec<protobuf::LogicalExprNode>, BallistaError>>()?;
+                Ok(protobuf::LogicalExprNode {
+                    expr_type: Some(
+                        protobuf::logical_expr_node::ExprType::ScalarUdfProtoExpr(
+                            protobuf::ScalarUdfProtoExprNode {
+                                fun_name: fun.name.clone(),
+                                args,
+                            },
+                        ),
+                    ),
+                })
+            }
             Expr::AggregateUDF { ref fun, ref args } => {
                 let args: Vec<protobuf::LogicalExprNode> = args
                     .iter()

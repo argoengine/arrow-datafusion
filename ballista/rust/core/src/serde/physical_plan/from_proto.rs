@@ -83,7 +83,7 @@ use datafusion::physical_plan::{
 use datafusion::physical_plan::{
     AggregateExpr, ColumnStatistics, ExecutionPlan, PhysicalExpr, Statistics, WindowExpr,
 };
-use datafusion::physical_plan::udf::create_physical_expr;
+use datafusion::physical_plan::udf::{create_physical_expr, ScalarUDFExpr};
 use datafusion::prelude::CsvReadOptions;
 use log::debug;
 use protobuf::physical_expr_node::ExprType;
@@ -316,28 +316,6 @@ impl TryInto<Arc<dyn ExecutionPlan>> for &protobuf::PhysicalPlanNode {
                                     name.to_string(),
                                 )?)
                             }
-                            // argo engine add.
-                            // ExprType::ScalarUDFExpr(udf_node) => {
-                            //     let name = udf_node.fun_name.as_str();
-                            //     let udf_fun_name = &name[0..name.find('(').unwrap()];
-                            //     let fun = from_name_to_udf(udf_fun_name).map_err(|e| {
-                            //         proto_error(format!(
-                            //             "from_proto error: {}",
-                            //             e
-                            //         ))
-                            //     })?;
-                            //
-                            //     let args: Vec<Arc<dyn PhysicalExpr>> = udf_node.expr
-                            //         .iter()
-                            //         .map(|e| e.try_into())
-                            //         .collect::<Result<Vec<_>, BallistaError>>()?;
-                            //
-                            //     Ok(create_physical_expr(
-                            //         &fun,
-                            //         &args,
-                            //         &physical_schema,
-                            //     )?)
-                            // }
                             ExprType::AggregateUdfExpr(agg_node) => {
                                 let name = agg_node.fun_name.as_str();
                                 let udaf_fun_name = &name[0..name.find('(').unwrap()];
@@ -595,53 +573,27 @@ impl TryFrom<&protobuf::PhysicalExprNode> for Arc<dyn PhysicalExpr> {
                 ));
             }
             // argo engine add.
-            // ExprType::ScalarUDFExpr(e) => {
-            //     let fun = from_name_to_udf(e.fun_name).map_err(|e| {
-            //         proto_error(format!(
-            //             "from_proto error: {}",
-            //             e
-            //         ))
-            //     })?;
-            //
-            //     let args = e
-            //         .args
-            //         .iter()
-            //         .map(|x| x.try_into())
-            //         .collect::<Result<Vec<_>, _>>()?;
-            //
-            //     let catalog_list =
-            //         Arc::new(MemoryCatalogList::new()) as Arc<dyn CatalogList>;
-            //
-            //     let ctx_state = ExecutionContextState {
-            //         catalog_list,
-            //         scalar_functions: Default::default(),
-            //         var_provider: Default::default(),
-            //         aggregate_functions: Default::default(),
-            //         config: ExecutionConfig::new(),
-            //         execution_props: ExecutionProps::new(),
-            //         object_store_registry: Arc::new(ObjectStoreRegistry::new()),
-            //         runtime_env: Arc::new(RuntimeEnv::default()),
-            //     };
-            //
-            //     let fun_expr = fun.fun;
-            //
-            //     Arc::new(ScalarFunctionExpr::new(
-            //         &e.name,
-            //         fun_expr,
-            //         args,
-            //         &convert_required!(e.return_type)?,
-            //     ))
-            //
-            //     let name = udf_node.fun_name.as_str();
-            //     let udf_fun_name = &name[0..name.find('(').unwrap()];
-            //     let fun = from_name_to_udf(udf_fun_name).map_err(|e| {
-            //         proto_error(format!(
-            //             "from_proto error: {}",
-            //             e
-            //         ))
-            //     })?;
-            //     Arc::new(fun)
-            // }
+            ExprType::ScalarUDFProtoExpr(e) => {
+                let fun = from_name_to_udf(e.fun_name).map_err(|e| {
+                    proto_error(format!(
+                        "from_proto error: {}",
+                        e
+                    ))
+                })?;
+
+                let args = e
+                    .args
+                    .iter()
+                    .map(|x| x.try_into())
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                Arc::new(ScalarUDFExpr{
+                    fun: fun.clone(),
+                    name: e.fun_name,
+                    args,
+                    return_type: convert_required!(e.return_type)?,
+                })
+            }
             ExprType::AggregateUdfExpr(_) => {
                 return Err(BallistaError::General(
                     "Cannot convert aggregate udf expr node to physical expression"
