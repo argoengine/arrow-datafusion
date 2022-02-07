@@ -84,6 +84,7 @@ message LogicalExprNode {
     //ArgoEngineAggregateUDF expressions
     AggregateUDFExprNode aggregate_udf_expr = 19;
 
+//    ScalarUDFExprNode scalar_udf_expr = 20;
   }
 }
 
@@ -524,6 +525,8 @@ message PhysicalExprNode {
 
     // argo engine add.
     PhysicalAggregateUDFExprNode aggregate_udf_expr = 16;
+
+//    PhysicalScalarUDFExprNode scalar_udf_expr = 17;
     // argo engine add end.
   }
 }
@@ -538,6 +541,11 @@ message PhysicalAggregateUDFExprNode {
   string fun_name = 1;
   repeated PhysicalExprNode expr = 2;
 }
+//
+//message PhysicalScalarUDFExprNode {
+//  string fun_name = 1;
+//  repeated PhysicalExprNode expr = 2;
+//}
 // argo engine add end.
 
 message PhysicalWindowExprNode {
@@ -998,6 +1006,11 @@ message AggregateUDFExprNode {
   string fun_name = 1;
   repeated LogicalExprNode args = 2;
 }
+//
+//message ScalarUDFExprNode {
+//  string fun_name = 1;
+//  repeated LogicalExprNode args = 2;
+//}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Arrow Data Types
