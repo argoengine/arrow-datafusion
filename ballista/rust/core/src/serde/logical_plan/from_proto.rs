@@ -1094,20 +1094,20 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
                     args: args.try_into().unwrap(),
                 })
             }
-            // ExprType::ScalarUDFExpr(expr) => {
-            //     let fun = from_name_to_udf(expr.fun_name.as_str())
-            //         .map_err(|e| proto_error(format!("from_proto error: {}", e)))?;
-            //     let fun_arc = Arc::new(fun);
-            //     let fun_args = &expr.args;
-            //     let args: Vec<Expr> = fun_args
-            //         .iter()
-            //         .map(|e| e.try_into())
-            //         .collect::<Result<Vec<Expr>, BallistaError>>()?;
-            //     Ok(Expr::ScalarUDF {
-            //         fun: fun_arc,
-            //         args: args.try_into().unwrap(),
-            //     })
-            // } // argo engine add end
+            ExprType::ScalarUdfProtoExpr(expr) => {
+                let fun = from_name_to_udf(expr.fun_name.as_str())
+                    .map_err(|e| proto_error(format!("from_proto error: {}", e)))?;
+                let fun_arc = Arc::new(fun);
+                let fun_args = &expr.args;
+                let args: Vec<Expr> = fun_args
+                    .iter()
+                    .map(|e| e.try_into())
+                    .collect::<Result<Vec<Expr>, BallistaError>>()?;
+                Ok(Expr::ScalarUDF {
+                    fun: fun_arc,
+                    args: args.try_into().unwrap(),
+                })
+            } // argo engine add end
             ExprType::Alias(alias) => Ok(Expr::Alias(
                 Box::new(parse_required_expr(&alias.expr)?),
                 alias.alias.clone(),

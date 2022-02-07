@@ -75,7 +75,7 @@ use datafusion::physical_plan::coalesce_partitions::CoalescePartitionsExec;
 use datafusion::physical_plan::functions::{BuiltinScalarFunction, ScalarFunctionExpr};
 use datafusion::physical_plan::repartition::RepartitionExec;
 use datafusion::physical_plan::udaf::AggregateFunctionExpr;
-use datafusion::physical_plan::udf::ScalarUDF;
+use datafusion::physical_plan::udf::{ScalarUDF, ScalarUDFExpr};
 
 impl TryInto<protobuf::PhysicalPlanNode> for Arc<dyn ExecutionPlan> {
     type Error = BallistaError;
@@ -616,6 +616,24 @@ impl TryFrom<Arc<dyn PhysicalExpr>> for protobuf::PhysicalExprNode {
                         fun: fun.into(),
                         args,
                         return_type: Some(expr.return_type().into()),
+                    },
+                )),
+            })
+        } else if let Some(expr) = expr.downcast_ref::<ScalarUDFExpr>() {
+            let fun: ScalarUDF = expr.fun.clone();
+            let args: Vec<protobuf::PhysicalExprNode> = expr
+                .args()
+                .iter()
+                .map(|e| e.to_owned().try_into())
+                .collect::<Result<Vec<_>, _>>()?;
+            let data_type = expr.return_type.clone();
+            let return_type = (&data_type).into();
+            Ok(protobuf::PhysicalExprNode {
+                expr_type: Some(protobuf::physical_expr_node::ExprType::ScalarUdfProtoExpr(
+                    protobuf::PhysicalScalarUdfProtoExprNode {
+                        fun_name: expr.name.to_string(),
+                        expr: args,
+                        return_type: Some(return_type),
                     },
                 )),
             })
