@@ -29,7 +29,7 @@ publish = false
 rust-version = "1.57"
 
 [dependencies]
-datafusion =  { git = "http://git.analysysdata.com/noah/arrow-datafusion.git", branch="1.0", package = "datafusion" }
+datafusion =  { git = "http://argo_engine:hQTHSm845HEDA8Cs_9dk@git.analysysdata.com/noah/arrow-datafusion.git", branch="1.0", package = "datafusion" }
 ballista = { path = "../ballista/rust/client", version = "0.6.0"}
 prost = "0.9"
 tonic = "0.6"
