@@ -426,13 +426,12 @@ impl TryInto<protobuf::PhysicalExprNode> for Arc<dyn AggregateExpr> {
             .downcast_ref::<AggregateFunctionExpr>()
             .is_some()
         {
-            let name = self.name().to_string();
             Ok(protobuf::PhysicalExprNode {
                 expr_type: Some(
                     protobuf::physical_expr_node::ExprType::AggregateUdfExpr(
                         protobuf::PhysicalAggregateUdfExprNode {
-                            fun_name: name.to_string(),
-                            expr: expressions.clone(),
+                            fun_name: self.name().to_string(),
+                            expr: expressions,
                         },
                     ),
                 ),
@@ -620,22 +619,23 @@ impl TryFrom<Arc<dyn PhysicalExpr>> for protobuf::PhysicalExprNode {
                 )),
             })
         } else if let Some(expr) = expr.downcast_ref::<ScalarUDFExpr>() {
-            let fun: ScalarUDF = expr.;
             let args: Vec<protobuf::PhysicalExprNode> = expr
                 .args()
                 .iter()
                 .map(|e| e.to_owned().try_into())
                 .collect::<Result<Vec<_>, _>>()?;
-            let data_type = expr.return_type.clone();
+            let data_type = expr.return_type().clone();
             let return_type = (&data_type).into();
             Ok(protobuf::PhysicalExprNode {
-                expr_type: Some(protobuf::physical_expr_node::ExprType::ScalarUdfProtoExpr(
-                    protobuf::PhysicalScalarUdfProtoExprNode {
-                        fun_name: expr.name.to_string(),
-                        expr: args,
-                        return_type: Some(return_type),
-                    },
-                )),
+                expr_type: Some(
+                    protobuf::physical_expr_node::ExprType::ScalarUdfProtoExpr(
+                        protobuf::PhysicalScalarUdfProtoExprNode {
+                            fun_name: expr.name().to_string(),
+                            expr: args,
+                            return_type: Some(return_type),
+                        },
+                    ),
+                ),
             })
         } else {
             Err(BallistaError::General(format!(

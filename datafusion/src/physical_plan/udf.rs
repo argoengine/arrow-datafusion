@@ -20,7 +20,6 @@
 use fmt::{Debug, Formatter};
 use std::any::Any;
 use std::fmt;
-use std::fmt::Display;
 
 use arrow::datatypes::{DataType, Schema};
 
@@ -144,6 +143,7 @@ pub struct ScalarUDFExpr {
 }
 
 impl ScalarUDFExpr {
+    /// create a ScalarUDFExpr
     pub fn new(
         name: &str,
         fun: ScalarUDF,
@@ -158,14 +158,17 @@ impl ScalarUDFExpr {
         }
     }
 
+    /// return fun
     pub fn fun(&self) -> &ScalarUDF {
         &self.fun
     }
 
+    /// return name
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// return args
     pub fn args(&self) -> &[Arc<dyn PhysicalExpr>] {
         &self.args
     }
