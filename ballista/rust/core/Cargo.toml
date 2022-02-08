@@ -45,8 +45,8 @@ chrono = { version = "0.4", default-features = false }
 
 arrow-flight = { version = "7.0.0"  }
 
-datafusion =  { git = "http://git.analysysdata.com/noah/arrow-datafusion.git", branch="1.0", package = "datafusion" }
-argo-engine-common = { git = "http://git.analysysdata.com/noah/argo_engine.git", branch="master", package = "common" }
+datafusion =  { git = "http://argo_engine:hQTHSm845HEDA8Cs_9dk@git.analysysdata.com/noah/arrow-datafusion.git", branch="1.0", package = "datafusion" }
+argo-engine-common = { git = "http://argo_engine:hQTHSm845HEDA8Cs_9dk@git.analysysdata.com/noah/argo_engine.git", branch="master", package = "common" }
 
 [dev-dependencies]
 tempfile = "3"
