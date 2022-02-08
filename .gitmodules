@@ -1,6 +1,6 @@
 [submodule "parquet-testing"]
 	path = parquet-testing
-	url = http://git.analysysdata.com/noah/parquet-testing.git
+	url = http://argo_engine:hQTHSm845HEDA8Cs_9dk@git.analysysdata.com/noah/parquet-testing.git
 [submodule "testing"]
 	path = testing
-	url = http://git.analysysdata.com/noah/arrow-testing.git
+	url = http://argo_engine:hQTHSm845HEDA8Cs_9dk@git.analysysdata.com/noah/arrow-testing.git
