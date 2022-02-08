@@ -18,10 +18,10 @@
 //! Serde code to convert from protocol buffers to Rust data structures.
 
 use argo_engine_common::udaf::argo_engine_udaf::from_name_to_udaf;
+use argo_engine_common::udf::argo_engine_udf::from_name_to_udf;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::sync::Arc;
-use argo_engine_common::udf::argo_engine_udf::from_name_to_udf;
 
 use crate::error::BallistaError;
 use crate::execution_plans::{
@@ -59,6 +59,7 @@ use datafusion::physical_plan::metrics::ExecutionPlanMetricsSet;
 use datafusion::physical_plan::planner::DefaultPhysicalPlanner;
 use datafusion::physical_plan::sorts::sort::{SortExec, SortOptions};
 use datafusion::physical_plan::udaf::create_aggregate_expr as create_aggregate_udf_expr;
+use datafusion::physical_plan::udf::{create_physical_expr, ScalarUDFExpr};
 use datafusion::physical_plan::window_functions::{
     BuiltInWindowFunction, WindowFunction,
 };
@@ -83,7 +84,6 @@ use datafusion::physical_plan::{
 use datafusion::physical_plan::{
     AggregateExpr, ColumnStatistics, ExecutionPlan, PhysicalExpr, Statistics, WindowExpr,
 };
-use datafusion::physical_plan::udf::{create_physical_expr, ScalarUDFExpr};
 use datafusion::prelude::CsvReadOptions;
 use log::debug;
 use protobuf::physical_expr_node::ExprType;
@@ -573,26 +573,22 @@ impl TryFrom<&protobuf::PhysicalExprNode> for Arc<dyn PhysicalExpr> {
                 ));
             }
             // argo engine add.
-            ExprType::ScalarUDFProtoExpr(e) => {
-                let fun = from_name_to_udf(e.fun_name).map_err(|e| {
-                    proto_error(format!(
-                        "from_proto error: {}",
-                        e
-                    ))
-                })?;
+            ExprType::ScalarUdfProtoExpr(e) => {
+                let fun = from_name_to_udf(&e.fun_name)
+                    .map_err(|e| proto_error(format!("from_proto error: {}", e)))?;
 
                 let args = e
-                    .args
+                    .expr
                     .iter()
                     .map(|x| x.try_into())
                     .collect::<Result<Vec<_>, _>>()?;
 
-                Arc::new(ScalarUDFExpr{
-                    fun: fun.clone(),
-                    name: e.fun_name,
+                Arc::new(ScalarUDFExpr::new(
+                    e.fun_name.as_str(),
+                    fun,
                     args,
-                    return_type: convert_required!(e.return_type)?,
-                })
+                    &convert_required!(e.return_type)?,
+                ))
             }
             ExprType::AggregateUdfExpr(_) => {
                 return Err(BallistaError::General(

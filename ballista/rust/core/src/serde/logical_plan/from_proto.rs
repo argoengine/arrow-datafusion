@@ -1089,10 +1089,7 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
                     .iter()
                     .map(|e| e.try_into())
                     .collect::<Result<Vec<Expr>, BallistaError>>()?;
-                Ok(Expr::AggregateUDF {
-                    fun: fun_arc,
-                    args: args.try_into().unwrap(),
-                })
+                Ok(Expr::AggregateUDF { fun: fun_arc, args })
             }
             ExprType::ScalarUdfProtoExpr(expr) => {
                 let fun = from_name_to_udf(expr.fun_name.as_str())
@@ -1103,10 +1100,7 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
                     .iter()
                     .map(|e| e.try_into())
                     .collect::<Result<Vec<Expr>, BallistaError>>()?;
-                Ok(Expr::ScalarUDF {
-                    fun: fun_arc,
-                    args: args.try_into().unwrap(),
-                })
+                Ok(Expr::ScalarUDF { fun: fun_arc, args })
             } // argo engine add end
             ExprType::Alias(alias) => Ok(Expr::Alias(
                 Box::new(parse_required_expr(&alias.expr)?),
@@ -1310,6 +1304,7 @@ impl TryInto<Field> for &protobuf::Field {
 }
 
 use crate::serde::protobuf::ColumnStats;
+use argo_engine_common::udf::argo_engine_udf::from_name_to_udf;
 use datafusion::physical_plan::udaf::AggregateUDF;
 use datafusion::physical_plan::{aggregates, windows};
 use datafusion::prelude::{
@@ -1318,7 +1313,6 @@ use datafusion::prelude::{
 };
 use futures::TryFutureExt;
 use std::convert::TryFrom;
-use argo_engine_common::udf::argo_engine_udf::from_name_to_udf;
 
 impl TryFrom<i32> for protobuf::FileType {
     type Error = BallistaError;
