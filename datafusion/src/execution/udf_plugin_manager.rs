@@ -109,9 +109,9 @@ impl PluginManager for UDFPluginManager {
                 })?;
 
             self.plugin_names.push(udf_plugin_proxy.plugin_name);
+            self.libraries.push(library);
         }
 
-        self.libraries.push(library);
         Ok(())
     }
 }
