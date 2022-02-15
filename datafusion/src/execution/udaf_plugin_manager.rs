@@ -66,8 +66,7 @@ impl PluginManager for UDAFPluginManager {
             .read();
 
         // version checks to prevent accidental ABI incompatibilities
-        if dec.rustc_version != RUSTC_VERSION.as_str() || dec.core_version != CORE_VERSION
-        {
+        if dec.rustc_version != RUSTC_VERSION || dec.core_version != CORE_VERSION {
             return Err(io::Error::new(io::ErrorKind::Other, "Version mismatch"));
         }
 

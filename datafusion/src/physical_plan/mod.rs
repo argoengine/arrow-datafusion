@@ -37,8 +37,6 @@ use arrow::{array::ArrayRef, datatypes::Field};
 use async_trait::async_trait;
 pub use display::DisplayFormatType;
 use futures::stream::Stream;
-use lazy_static::lazy_static;
-use rustc_version::version;
 use std::fmt;
 use std::fmt::{Debug, Display};
 use std::ops::Range;
@@ -633,12 +631,8 @@ pub trait Accumulator: Send + Sync + Debug {
 
 /// CARGO_PKG_VERSION
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
-lazy_static! {
-    /// set rustc version to static
-    pub static ref RUSTC_VERSION: String = {
-        version().unwrap().to_string()
-    };
-}
+/// RUSTC_VERSION
+pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 pub mod aggregates;
 pub mod analyze;
 pub mod array_expressions;
