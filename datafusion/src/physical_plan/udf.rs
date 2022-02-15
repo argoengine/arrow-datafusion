@@ -73,7 +73,9 @@ pub trait UDFPluginRegistrar {
 macro_rules! declare_udf_plugin {
     ($plugin_name:expr, $plugin_type:ty, $constructor:path) => {
         #[no_mangle]
-        pub extern "C" fn register_udf_plugin(registrar: &mut dyn UDFPluginRegistrar) {
+        pub extern "C" fn register_udf_plugin(
+            registrar: &mut dyn $crate::physical_plan::udf::UDFPluginRegistrar,
+        ) {
             // make sure the constructor is the correct type.
             let constructor: fn() -> $plugin_type = $constructor;
             let object = constructor();
@@ -81,10 +83,11 @@ macro_rules! declare_udf_plugin {
         }
 
         #[no_mangle]
-        pub static udf_plugin_declaration: $crate::UDFPluginDeclaration =
-            $crate::UDFPluginDeclaration {
-                rustc_version: $crate::RUSTC_VERSION,
-                core_version: $crate::CORE_VERSION,
+        pub static udf_plugin_declaration:
+            $crate::physical_plan::udf::UDFPluginDeclaration =
+            $crate::physical_plan::udf::UDFPluginDeclaration {
+                rustc_version: $crate::physical_plan::RUSTC_VERSION,
+                core_version: $crate::physical_plan::CORE_VERSION,
                 register: register_udf_plugin,
             };
     };
