@@ -22,7 +22,6 @@ use crate::serde::{
     from_proto_binary_op, proto_error, protobuf, str_to_byte, vec_to_array,
 };
 use crate::{convert_box_required, convert_required};
-use argo_engine_common::udaf::argo_engine_udaf::from_name_to_udaf;
 use datafusion::arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use datafusion::datasource::file_format::avro::AvroFormat;
 use datafusion::datasource::file_format::csv::CsvFormat;
@@ -1081,8 +1080,16 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
             }
             // argo engine add start
             ExprType::AggregateUdfExpr(expr) => {
-                let fun = from_name_to_udaf(expr.fun_name.as_str())
-                    .map_err(|e| proto_error(format!("from_proto error: {}", e)))?;
+                let fun = UDAF_PLUGIN_MANAGER
+                    .aggregate_udf_plugins.get(expr.fun_name.as_str()).ok_or_else(|| {
+                    proto_error(format!(
+                        "can not get udaf:{} from UDAF_PLUGIN_MANAGER.aggregate_udf_plugins!",
+                        expr.fun_name.to_string()
+                    ))
+                })?;
+                let fun = fun
+                    .get_aggregate_udf_by_name(expr.fun_name.as_str())
+                    .map_err(|e| BallistaError::DataFusionError(e))?;
                 let fun_arc = Arc::new(fun);
                 let fun_args = &expr.args;
                 let args: Vec<Expr> = fun_args
@@ -1092,8 +1099,18 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
                 Ok(Expr::AggregateUDF { fun: fun_arc, args })
             }
             ExprType::ScalarUdfProtoExpr(expr) => {
-                let fun = from_name_to_udf(expr.fun_name.as_str())
-                    .map_err(|e| proto_error(format!("from_proto error: {}", e)))?;
+                let fun = UDF_PLUGIN_MANAGER
+                    .scalar_udfs
+                    .get(expr.fun_name.as_str())
+                    .ok_or_else(|| {
+                        proto_error(format!(
+                            "can not get udf:{} from UDF_PLUGIN_MANAGER.scalar_udfs!",
+                            expr.fun_name.to_string()
+                        ))
+                    })?;
+                let fun = fun
+                    .get_scalar_udf_by_name(expr.fun_name.as_str())
+                    .map_err(|e| BallistaError::DataFusionError(e))?;
                 let fun_arc = Arc::new(fun);
                 let fun_args = &expr.args;
                 let args: Vec<Expr> = fun_args
@@ -1304,8 +1321,11 @@ impl TryInto<Field> for &protobuf::Field {
 }
 
 use crate::serde::protobuf::ColumnStats;
-use argo_engine_common::udf::argo_engine_udf::from_name_to_udf;
-use datafusion::physical_plan::udaf::AggregateUDF;
+use datafusion::execution::udaf_plugin_manager::UDAF_PLUGIN_MANAGER;
+use datafusion::execution::udf_plugin_manager::UDF_PLUGIN_MANAGER;
+use datafusion::execution::PluginManager;
+use datafusion::physical_plan::udaf::{AggregateUDF, UDAFPlugin};
+use datafusion::physical_plan::udf::UDFPlugin;
 use datafusion::physical_plan::{aggregates, windows};
 use datafusion::prelude::{
     array, date_part, date_trunc, length, lower, ltrim, md5, rtrim, sha224, sha256,

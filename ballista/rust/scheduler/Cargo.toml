@@ -35,7 +35,7 @@ anyhow = "1"
 ballista-core = { path = "../core"}
 clap = "2"
 configure_me = "0.4.0"
-datafusion =  { git = "http://argo_engine:hQTHSm845HEDA8Cs_9dk@git.analysysdata.com/noah/arrow-datafusion.git", branch="1.0", package = "datafusion" }
+datafusion =  { path = "../../../datafusion" }
 env_logger = "0.9"
 etcd-client = { version = "0.7", optional = true }
 futures = "0.3"

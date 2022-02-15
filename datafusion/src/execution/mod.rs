@@ -17,9 +17,48 @@
 
 //! DataFusion query execution
 
+use std::fs::DirEntry;
+use std::{fs, io};
+
 pub mod context;
 pub mod dataframe_impl;
 pub(crate) mod disk_manager;
 pub(crate) mod memory_manager;
 pub mod options;
 pub mod runtime_env;
+pub mod udaf_plugin_manager;
+pub mod udf_plugin_manager;
+
+/// plugin manager trait
+pub trait PluginManager {
+    /// # Safety
+    /// find plugin file from `plugin_path` and load it .
+    unsafe fn load(&mut self, plugin_path: String) -> io::Result<()> {
+        // find library file from udaf_plugin_path
+        let library_files = fs::read_dir(plugin_path)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+        for entry in library_files {
+            let entry = entry?;
+            let file_type = entry.file_type()?;
+
+            if !file_type.is_file() {
+                continue;
+            }
+
+            if let Some(path) = entry.path().extension() {
+                if let Some(suffix) = path.to_str() {
+                    if suffix == "dylib" {
+                        self.load_plugin_from_library(&entry)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// # Safety
+    /// load plugin from the library `file` . Every different plugins should have different implementations
+    unsafe fn load_plugin_from_library(&mut self, file: &DirEntry) -> io::Result<()>;
+}

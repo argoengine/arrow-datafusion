@@ -35,7 +35,7 @@ anyhow = "1"
 async-trait = "0.1.36"
 ballista-core = { path = "../core"}
 configure_me = "0.4.0"
-datafusion =  { git = "http://argo_engine:hQTHSm845HEDA8Cs_9dk@git.analysysdata.com/noah/arrow-datafusion.git", branch="1.0", package = "datafusion" }
+datafusion =  { path = "../../../datafusion" }
 env_logger = "0.9"
 futures = "0.3"
 log = "0.4"

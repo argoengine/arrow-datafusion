@@ -77,10 +77,13 @@ use crate::physical_optimizer::merge_exec::AddCoalescePartitionsExec;
 use crate::physical_optimizer::repartition::Repartition;
 
 use crate::execution::runtime_env::{RuntimeConfig, RuntimeEnv};
+use crate::execution::udaf_plugin_manager::UDAF_PLUGIN_MANAGER;
+use crate::execution::udf_plugin_manager::UDF_PLUGIN_MANAGER;
 use crate::logical_plan::plan::Explain;
 use crate::optimizer::single_distinct_to_groupby::SingleDistinctToGroupBy;
 use crate::physical_plan::planner::DefaultPhysicalPlanner;
-use crate::physical_plan::udf::ScalarUDF;
+use crate::physical_plan::udaf::UDAFPlugin;
+use crate::physical_plan::udf::{ScalarUDF, UDFPlugin};
 use crate::physical_plan::ExecutionPlan;
 use crate::physical_plan::PhysicalPlanner;
 use crate::sql::{
@@ -182,7 +185,7 @@ impl ExecutionContext {
         let runtime_env =
             Arc::new(RuntimeEnv::new(config.runtime_config.clone()).unwrap());
 
-        Self {
+        let mut context = Self {
             state: Arc::new(Mutex::new(ExecutionContextState {
                 catalog_list,
                 scalar_functions: HashMap::new(),
@@ -193,7 +196,42 @@ impl ExecutionContext {
                 object_store_registry: Arc::new(ObjectStoreRegistry::new()),
                 runtime_env,
             })),
-        }
+        };
+
+        // register udf
+        UDF_PLUGIN_MANAGER
+            .plugin_names
+            .iter()
+            .for_each(|plugin_name| {
+                let udf_proxy_option =
+                    UDF_PLUGIN_MANAGER.scalar_udfs.get(plugin_name.as_str());
+                if let Some(udf_proxy) = udf_proxy_option {
+                    context.register_udf(
+                        udf_proxy
+                            .get_scalar_udf_by_name(plugin_name.as_str())
+                            .unwrap(),
+                    );
+                }
+            });
+
+        // register udaf
+        UDAF_PLUGIN_MANAGER
+            .plugin_names
+            .iter()
+            .for_each(|plugin_name| {
+                let udaf_proxy_option = UDAF_PLUGIN_MANAGER
+                    .aggregate_udf_plugins
+                    .get(plugin_name.as_str());
+                if let Some(udaf_proxy) = udaf_proxy_option {
+                    context.register_udaf(
+                        udaf_proxy
+                            .get_aggregate_udf_by_name(plugin_name.as_str())
+                            .unwrap(),
+                    );
+                }
+            });
+
+        context
     }
 
     /// Creates a dataframe that will execute a SQL query.

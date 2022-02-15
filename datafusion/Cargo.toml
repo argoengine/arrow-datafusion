@@ -78,6 +78,8 @@ avro-rs = { version = "0.13", features = ["snappy"], optional = true }
 num-traits = { version = "0.2", optional = true }
 pyo3 = { version = "0.14", optional = true }
 tempfile = "3"
+libloading = "0.7.3"
+rustc_version = "0.4.0"
 
 [dev-dependencies]
 criterion = "0.3"

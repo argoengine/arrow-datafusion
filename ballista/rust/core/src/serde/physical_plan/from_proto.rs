@@ -17,8 +17,6 @@
 
 //! Serde code to convert from protocol buffers to Rust data structures.
 
-use argo_engine_common::udaf::argo_engine_udaf::from_name_to_udaf;
-use argo_engine_common::udf::argo_engine_udf::from_name_to_udf;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::sync::Arc;
@@ -45,6 +43,8 @@ use datafusion::execution::context::{
     ExecutionConfig, ExecutionContextState, ExecutionProps,
 };
 use datafusion::execution::runtime_env::RuntimeEnv;
+use datafusion::execution::udaf_plugin_manager::UDAF_PLUGIN_MANAGER;
+use datafusion::execution::udf_plugin_manager::UDF_PLUGIN_MANAGER;
 use datafusion::logical_plan::{
     window_frames::WindowFrame, DFSchema, Expr, JoinConstraint, JoinType,
 };
@@ -58,8 +58,10 @@ use datafusion::physical_plan::hash_join::PartitionMode;
 use datafusion::physical_plan::metrics::ExecutionPlanMetricsSet;
 use datafusion::physical_plan::planner::DefaultPhysicalPlanner;
 use datafusion::physical_plan::sorts::sort::{SortExec, SortOptions};
-use datafusion::physical_plan::udaf::create_aggregate_expr as create_aggregate_udf_expr;
-use datafusion::physical_plan::udf::{create_physical_expr, ScalarUDFExpr};
+use datafusion::physical_plan::udaf::{
+    create_aggregate_expr as create_aggregate_udf_expr, UDAFPlugin,
+};
+use datafusion::physical_plan::udf::{create_physical_expr, ScalarUDFExpr, UDFPlugin};
 use datafusion::physical_plan::window_functions::{
     BuiltInWindowFunction, WindowFunction,
 };
@@ -319,12 +321,16 @@ impl TryInto<Arc<dyn ExecutionPlan>> for &protobuf::PhysicalPlanNode {
                             ExprType::AggregateUdfExpr(agg_node) => {
                                 let name = agg_node.fun_name.as_str();
                                 let udaf_fun_name = &name[0..name.find('(').unwrap()];
-                                let fun = from_name_to_udaf(udaf_fun_name).map_err(|e| {
+                                let fun = UDAF_PLUGIN_MANAGER
+                                    .aggregate_udf_plugins.get(udaf_fun_name).ok_or_else(|| {
                                     proto_error(format!(
-                                        "from_proto error: {}",
-                                        e
+                                        "can not get udaf:{} from UDAF_PLUGIN_MANAGER.aggregate_udf_plugins!",
+                                        udaf_fun_name.to_string()
                                     ))
                                 })?;
+                                let fun = fun
+                                    .get_aggregate_udf_by_name(udaf_fun_name)
+                                    .map_err(|e| BallistaError::DataFusionError(e))?;
 
                                 let args: Vec<Arc<dyn PhysicalExpr>> = agg_node.expr
                                     .iter()
@@ -574,8 +580,19 @@ impl TryFrom<&protobuf::PhysicalExprNode> for Arc<dyn PhysicalExpr> {
             }
             // argo engine add.
             ExprType::ScalarUdfProtoExpr(e) => {
-                let fun = from_name_to_udf(&e.fun_name)
-                    .map_err(|e| proto_error(format!("from_proto error: {}", e)))?;
+                let fun =
+                    UDF_PLUGIN_MANAGER
+                        .scalar_udfs
+                        .get(&e.fun_name)
+                        .ok_or_else(|| {
+                            proto_error(format!(
+                                "can not get udf:{} from UDF_PLUGIN_MANAGER.scalar_udfs!",
+                                &e.fun_name.to_owned()
+                            ))
+                        })?;
+                let fun = fun
+                    .get_scalar_udf_by_name(&e.fun_name.as_str())
+                    .map_err(|e| BallistaError::DataFusionError(e))?;
 
                 let args = e
                     .expr
