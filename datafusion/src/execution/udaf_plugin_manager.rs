@@ -42,8 +42,8 @@ lazy_static! {
 /// UDAFPluginManager
 #[derive(Default)]
 pub struct UDAFPluginManager {
-    /// aggregate udf plugins save as udaf_name:UDAFPluginProxy
-    pub aggregate_udf_plugins: HashMap<String, Arc<UDAFPluginProxy>>,
+    /// aggregate udfs save as udaf_name:UDAFPluginProxy
+    pub aggregate_udfs: HashMap<String, Arc<UDAFPluginProxy>>,
 
     /// Every Library need a plugin_name .
     pub plugin_names: Vec<String>,
@@ -92,7 +92,7 @@ impl PluginManager for UDAFPluginManager {
                 .unwrap()
                 .iter()
                 .try_for_each(|udaf_name| {
-                    if self.aggregate_udf_plugins.contains_key(udaf_name) {
+                    if self.aggregate_udfs.contains_key(udaf_name) {
                         Err(io::Error::new(
                             io::ErrorKind::Other,
                             format!(
@@ -101,7 +101,7 @@ impl PluginManager for UDAFPluginManager {
                             ),
                         ))
                     } else {
-                        self.aggregate_udf_plugins.insert(
+                        self.aggregate_udfs.insert(
                             udaf_name.to_string(),
                             Arc::new(udaf_plugin_proxy.clone()),
                         );

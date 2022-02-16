@@ -200,36 +200,26 @@ impl ExecutionContext {
 
         // register udf
         UDF_PLUGIN_MANAGER
-            .plugin_names
+            .scalar_udfs
             .iter()
-            .for_each(|plugin_name| {
-                let udf_proxy_option =
-                    UDF_PLUGIN_MANAGER.scalar_udfs.get(plugin_name.as_str());
-                if let Some(udf_proxy) = udf_proxy_option {
-                    context.register_udf(
-                        udf_proxy
-                            .get_scalar_udf_by_name(plugin_name.as_str())
-                            .unwrap(),
-                    );
-                }
+            .for_each(|(udf_name, plugin_proxy)| {
+                context.register_udf(
+                    plugin_proxy
+                        .get_scalar_udf_by_name(udf_name.as_str())
+                        .unwrap(),
+                )
             });
 
         // register udaf
-        UDAF_PLUGIN_MANAGER
-            .plugin_names
-            .iter()
-            .for_each(|plugin_name| {
-                let udaf_proxy_option = UDAF_PLUGIN_MANAGER
-                    .aggregate_udf_plugins
-                    .get(plugin_name.as_str());
-                if let Some(udaf_proxy) = udaf_proxy_option {
-                    context.register_udaf(
-                        udaf_proxy
-                            .get_aggregate_udf_by_name(plugin_name.as_str())
-                            .unwrap(),
-                    );
-                }
-            });
+        UDAF_PLUGIN_MANAGER.aggregate_udfs.iter().for_each(
+            |(udaf_name, plugin_proxy)| {
+                context.register_udaf(
+                    plugin_proxy
+                        .get_aggregate_udf_by_name(udaf_name.as_str())
+                        .unwrap(),
+                );
+            },
+        );
 
         context
     }

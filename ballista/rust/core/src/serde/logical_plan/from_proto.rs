@@ -1081,7 +1081,7 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
             // argo engine add start
             ExprType::AggregateUdfExpr(expr) => {
                 let fun = UDAF_PLUGIN_MANAGER
-                    .aggregate_udf_plugins.get(expr.fun_name.as_str()).ok_or_else(|| {
+                    .aggregate_udfs.get(expr.fun_name.as_str()).ok_or_else(|| {
                     proto_error(format!(
                         "can not get udaf:{} from UDAF_PLUGIN_MANAGER.aggregate_udf_plugins!",
                         expr.fun_name.to_string()

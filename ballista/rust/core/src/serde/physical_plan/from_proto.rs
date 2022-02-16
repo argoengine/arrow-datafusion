@@ -322,7 +322,7 @@ impl TryInto<Arc<dyn ExecutionPlan>> for &protobuf::PhysicalPlanNode {
                                 let name = agg_node.fun_name.as_str();
                                 let udaf_fun_name = &name[0..name.find('(').unwrap()];
                                 let fun = UDAF_PLUGIN_MANAGER
-                                    .aggregate_udf_plugins.get(udaf_fun_name).ok_or_else(|| {
+                                    .aggregate_udfs.get(udaf_fun_name).ok_or_else(|| {
                                     proto_error(format!(
                                         "can not get udaf:{} from UDAF_PLUGIN_MANAGER.aggregate_udf_plugins!",
                                         udaf_fun_name.to_string()

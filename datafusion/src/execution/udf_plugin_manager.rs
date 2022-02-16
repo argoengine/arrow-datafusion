@@ -42,7 +42,7 @@ lazy_static! {
 /// UDFPluginManager
 #[derive(Default)]
 pub struct UDFPluginManager {
-    /// scalar udf plugins save as udaf_name:UDFPluginProxy
+    /// scalar udfs save as udaf_name:UDFPluginProxy
     pub scalar_udfs: HashMap<String, Arc<UDFPluginProxy>>,
 
     /// Every Library need a plugin_name .
