@@ -42,7 +42,7 @@ pub trait PluginManager {
 
             if let Some(path) = entry.path().extension() {
                 if let Some(suffix) = path.to_str() {
-                    if suffix == "dylib" || suffix == "os" || suffix == "dll" {
+                    if suffix == "dylib" || suffix == "so" || suffix == "dll" {
                         info!("load plugin from library file:{}", path.to_str().unwrap());
                         println!(
                             "load plugin from library file:{}",
