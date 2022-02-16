@@ -17,6 +17,7 @@
 
 //! plugin manager
 
+use log::info;
 use std::fs::DirEntry;
 use std::{env, fs, io};
 
@@ -26,6 +27,8 @@ pub trait PluginManager {
     /// find plugin file from `plugin_path` and load it .
     unsafe fn load(&mut self, plugin_path: String) -> io::Result<()> {
         // find library file from udaf_plugin_path
+        info!("load plugin from dir:{}", plugin_path);
+        println!("load plugin from dir:{}", plugin_path);
         let library_files = fs::read_dir(plugin_path)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
@@ -40,6 +43,11 @@ pub trait PluginManager {
             if let Some(path) = entry.path().extension() {
                 if let Some(suffix) = path.to_str() {
                     if suffix == "dylib" {
+                        info!("load plugin from library file:{}", path.to_str().unwrap());
+                        println!(
+                            "load plugin from library file:{}",
+                            path.to_str().unwrap()
+                        );
                         self.load_plugin_from_library(&entry)?;
                     }
                 }
