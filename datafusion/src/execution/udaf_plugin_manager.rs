@@ -27,13 +27,14 @@ use std::io;
 use std::sync::Arc;
 
 use crate::error::Result;
-use crate::execution::PluginManager;
+use crate::execution::plugin_manager::{plugin_dir, PluginManager};
 use crate::physical_plan::{CORE_VERSION, RUSTC_VERSION};
 lazy_static! {
     /// load all udaf plugin
     pub static ref UDAF_PLUGIN_MANAGER: UDAFPluginManager = unsafe {
         let mut plugin = UDAFPluginManager::default();
-        plugin.load("plugin/udaf".to_string()).unwrap();
+        let plugin_path = plugin_dir();
+        plugin.load(plugin_path).unwrap();
         plugin
     };
 }

@@ -17,6 +17,7 @@
 
 //! udf plugin manager
 //!
+use crate::execution::plugin_manager::{plugin_dir, PluginManager};
 use crate::physical_plan::udf::UDFPluginRegistrar as UDFPluginRegistrarTrait;
 use crate::physical_plan::udf::{ScalarUDF, UDFPlugin, UDFPluginDeclaration};
 use lazy_static::lazy_static;
@@ -27,13 +28,13 @@ use std::io;
 use std::sync::Arc;
 
 use crate::error::Result;
-use crate::execution::PluginManager;
 use crate::physical_plan::{CORE_VERSION, RUSTC_VERSION};
 lazy_static! {
     /// load all udf plugin
     pub static ref UDF_PLUGIN_MANAGER: UDFPluginManager = unsafe {
         let mut plugin = UDFPluginManager::default();
-        plugin.load("plugin/udf".to_string()).unwrap();
+        let plugin_path = plugin_dir();
+        plugin.load(plugin_path).unwrap();
         plugin
     };
 }

@@ -1321,9 +1321,9 @@ impl TryInto<Field> for &protobuf::Field {
 }
 
 use crate::serde::protobuf::ColumnStats;
+use datafusion::execution::plugin_manager::PluginManager;
 use datafusion::execution::udaf_plugin_manager::UDAF_PLUGIN_MANAGER;
 use datafusion::execution::udf_plugin_manager::UDF_PLUGIN_MANAGER;
-use datafusion::execution::PluginManager;
 use datafusion::physical_plan::udaf::{AggregateUDF, UDAFPlugin};
 use datafusion::physical_plan::udf::UDFPlugin;
 use datafusion::physical_plan::{aggregates, windows};
