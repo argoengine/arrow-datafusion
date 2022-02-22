@@ -34,65 +34,6 @@ use crate::physical_plan::ColumnarValue;
 use arrow::record_batch::RecordBatch;
 use std::sync::Arc;
 
-/// 定义udf插件，udf的定义方需要实现该trait
-pub trait UDFPlugin: Send + Sync + 'static {
-    /// get a ScalarUDF by name
-    fn get_scalar_udf_by_name(&self, fun_name: &str) -> Result<ScalarUDF>;
-
-    /// return all udf names in the plugin
-    fn udf_names(&self) -> Result<Vec<String>>;
-}
-
-/// Every plugin need a UDFPluginDeclaration
-#[derive(Copy, Clone)]
-pub struct UDFPluginDeclaration {
-    /// rustc version of the plugin. The plugin's rustc_version need same as plugin manager.
-    pub rustc_version: &'static str,
-
-    /// core version of the plugin. The plugin's core_version need same as plugin manager.
-    pub core_version: &'static str,
-
-    /// `register` is a function which impl UDFPluginRegistrar. It will be call when plugin load.
-    pub register: unsafe extern "C" fn(&mut dyn UDFPluginRegistrar),
-}
-
-/// UDF Plugin Registrar , Define the functions every udf plugin need impl
-pub trait UDFPluginRegistrar {
-    /// The udf plugin need impl this function
-    fn register_udf_plugin(&mut self, plugin_name: &str, function: Box<dyn UDFPlugin>);
-}
-
-/// Declare a plugin's name, type and its constructor.
-///
-/// # Notes
-///
-/// This works by automatically generating an `extern "C"` function with a
-/// pre-defined signature and symbol name. And then generating a UDFPluginDeclaration.
-/// Therefore you will only be able to declare one plugin per library.
-#[macro_export]
-macro_rules! declare_udf_plugin {
-    ($plugin_name:expr, $plugin_type:ty, $constructor:path) => {
-        #[no_mangle]
-        pub extern "C" fn register_udf_plugin(
-            registrar: &mut dyn $crate::physical_plan::udf::UDFPluginRegistrar,
-        ) {
-            // make sure the constructor is the correct type.
-            let constructor: fn() -> $plugin_type = $constructor;
-            let object = constructor();
-            registrar.register_udf_plugin($plugin_name, Box::new(object));
-        }
-
-        #[no_mangle]
-        pub static udf_plugin_declaration:
-            $crate::physical_plan::udf::UDFPluginDeclaration =
-            $crate::physical_plan::udf::UDFPluginDeclaration {
-                rustc_version: $crate::physical_plan::RUSTC_VERSION,
-                core_version: $crate::physical_plan::CORE_VERSION,
-                register: register_udf_plugin,
-            };
-    };
-}
-
 /// Logical representation of a UDF.
 #[derive(Clone)]
 pub struct ScalarUDF {

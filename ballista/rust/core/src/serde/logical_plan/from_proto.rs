@@ -1080,44 +1080,56 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
             }
             // argo engine add start
             ExprType::AggregateUdfExpr(expr) => {
-                let fun = UDAF_PLUGIN_MANAGER
-                    .aggregate_udfs.get(expr.fun_name.as_str()).ok_or_else(|| {
-                    proto_error(format!(
-                        "can not get udaf:{} from UDAF_PLUGIN_MANAGER.aggregate_udf_plugins!",
-                        expr.fun_name.to_string()
-                    ))
-                })?;
-                let fun = fun
-                    .get_aggregate_udf_by_name(expr.fun_name.as_str())
-                    .map_err(|e| BallistaError::DataFusionError(e))?;
-                let fun_arc = Arc::new(fun);
-                let fun_args = &expr.args;
-                let args: Vec<Expr> = fun_args
-                    .iter()
-                    .map(|e| e.try_into())
-                    .collect::<Result<Vec<Expr>, BallistaError>>()?;
-                Ok(Expr::AggregateUDF { fun: fun_arc, args })
+                let gpm = global_plugin_manager("").lock().unwrap();
+                let plugin_registrar = gpm.plugin_managers.get(&PluginEnum::UDF).unwrap();
+                if let Some(udf_plugin_manager) =
+                    plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
+                {
+                    let fun = udf_plugin_manager
+                        .aggregate_udfs
+                        .get(expr.fun_name.as_str())
+                        .ok_or_else(|| {
+                            proto_error(format!(
+                                "can not get udaf:{} from udf_plugins!",
+                                expr.fun_name.to_string()
+                            ))
+                        })?;
+                    let fun_arc = fun.clone();
+                    let fun_args = &expr.args;
+                    let args: Vec<Expr> = fun_args
+                        .iter()
+                        .map(|e| e.try_into())
+                        .collect::<Result<Vec<Expr>, BallistaError>>()?;
+                    Ok(Expr::AggregateUDF { fun: fun_arc, args })
+                } else {
+                    Err(proto_error("can not get udf plugin".to_string()))
+                }
             }
             ExprType::ScalarUdfProtoExpr(expr) => {
-                let fun = UDF_PLUGIN_MANAGER
-                    .scalar_udfs
-                    .get(expr.fun_name.as_str())
-                    .ok_or_else(|| {
-                        proto_error(format!(
-                            "can not get udf:{} from UDF_PLUGIN_MANAGER.scalar_udfs!",
-                            expr.fun_name.to_string()
-                        ))
-                    })?;
-                let fun = fun
-                    .get_scalar_udf_by_name(expr.fun_name.as_str())
-                    .map_err(|e| BallistaError::DataFusionError(e))?;
-                let fun_arc = Arc::new(fun);
-                let fun_args = &expr.args;
-                let args: Vec<Expr> = fun_args
-                    .iter()
-                    .map(|e| e.try_into())
-                    .collect::<Result<Vec<Expr>, BallistaError>>()?;
-                Ok(Expr::ScalarUDF { fun: fun_arc, args })
+                let gpm = global_plugin_manager("").lock().unwrap();
+                let plugin_registrar = gpm.plugin_managers.get(&PluginEnum::UDF).unwrap();
+                if let Some(udf_plugin_manager) =
+                    plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
+                {
+                    let fun = udf_plugin_manager
+                        .scalar_udfs
+                        .get(expr.fun_name.as_str())
+                        .ok_or_else(|| {
+                            proto_error(format!(
+                                "can not get udf:{} from udf_plugins!",
+                                expr.fun_name.to_string()
+                            ))
+                        })?;
+                    let fun_arc = fun.clone();
+                    let fun_args = &expr.args;
+                    let args: Vec<Expr> = fun_args
+                        .iter()
+                        .map(|e| e.try_into())
+                        .collect::<Result<Vec<Expr>, BallistaError>>()?;
+                    Ok(Expr::ScalarUDF { fun: fun_arc, args })
+                } else {
+                    Err(proto_error(format!("can not found udf plugins!")))
+                }
             } // argo engine add end
             ExprType::Alias(alias) => Ok(Expr::Alias(
                 Box::new(parse_required_expr(&alias.expr)?),
@@ -1321,12 +1333,10 @@ impl TryInto<Field> for &protobuf::Field {
 }
 
 use crate::serde::protobuf::ColumnStats;
-use datafusion::execution::plugin_manager::PluginManager;
-use datafusion::execution::udaf_plugin_manager::UDAF_PLUGIN_MANAGER;
-use datafusion::execution::udf_plugin_manager::UDF_PLUGIN_MANAGER;
-use datafusion::physical_plan::udaf::{AggregateUDF, UDAFPlugin};
-use datafusion::physical_plan::udf::UDFPlugin;
 use datafusion::physical_plan::{aggregates, windows};
+use datafusion::plugin::plugin_manager::global_plugin_manager;
+use datafusion::plugin::udf::UDFPluginManager;
+use datafusion::plugin::PluginEnum;
 use datafusion::prelude::{
     array, date_part, date_trunc, length, lower, ltrim, md5, rtrim, sha224, sha256,
     sha384, sha512, trim, upper,

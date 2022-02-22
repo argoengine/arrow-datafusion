@@ -43,8 +43,6 @@ use datafusion::execution::context::{
     ExecutionConfig, ExecutionContextState, ExecutionProps,
 };
 use datafusion::execution::runtime_env::RuntimeEnv;
-use datafusion::execution::udaf_plugin_manager::UDAF_PLUGIN_MANAGER;
-use datafusion::execution::udf_plugin_manager::UDF_PLUGIN_MANAGER;
 use datafusion::logical_plan::{
     window_frames::WindowFrame, DFSchema, Expr, JoinConstraint, JoinType,
 };
@@ -58,10 +56,8 @@ use datafusion::physical_plan::hash_join::PartitionMode;
 use datafusion::physical_plan::metrics::ExecutionPlanMetricsSet;
 use datafusion::physical_plan::planner::DefaultPhysicalPlanner;
 use datafusion::physical_plan::sorts::sort::{SortExec, SortOptions};
-use datafusion::physical_plan::udaf::{
-    create_aggregate_expr as create_aggregate_udf_expr, UDAFPlugin,
-};
-use datafusion::physical_plan::udf::{create_physical_expr, ScalarUDFExpr, UDFPlugin};
+use datafusion::physical_plan::udaf::create_aggregate_expr as create_aggregate_udf_expr;
+use datafusion::physical_plan::udf::{create_physical_expr, ScalarUDFExpr};
 use datafusion::physical_plan::window_functions::{
     BuiltInWindowFunction, WindowFunction,
 };
@@ -86,6 +82,9 @@ use datafusion::physical_plan::{
 use datafusion::physical_plan::{
     AggregateExpr, ColumnStatistics, ExecutionPlan, PhysicalExpr, Statistics, WindowExpr,
 };
+use datafusion::plugin::plugin_manager::global_plugin_manager;
+use datafusion::plugin::udf::UDFPluginManager;
+use datafusion::plugin::PluginEnum;
 use datafusion::prelude::CsvReadOptions;
 use log::debug;
 use protobuf::physical_expr_node::ExprType;
@@ -321,28 +320,33 @@ impl TryInto<Arc<dyn ExecutionPlan>> for &protobuf::PhysicalPlanNode {
                             ExprType::AggregateUdfExpr(agg_node) => {
                                 let name = agg_node.fun_name.as_str();
                                 let udaf_fun_name = &name[0..name.find('(').unwrap()];
-                                let fun = UDAF_PLUGIN_MANAGER
-                                    .aggregate_udfs.get(udaf_fun_name).ok_or_else(|| {
-                                    proto_error(format!(
-                                        "can not get udaf:{} from UDAF_PLUGIN_MANAGER.aggregate_udf_plugins!",
-                                        udaf_fun_name.to_string()
-                                    ))
-                                })?;
-                                let fun = fun
-                                    .get_aggregate_udf_by_name(udaf_fun_name)
-                                    .map_err(|e| BallistaError::DataFusionError(e))?;
+                                let gpm = global_plugin_manager("").lock().unwrap();
+                                let plugin_registrar = gpm.plugin_managers.get(&PluginEnum::UDF).unwrap();
+                                if let Some(udf_plugin_manager) = plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
+                                {
+                                    let fun = udf_plugin_manager.aggregate_udfs.get(udaf_fun_name).ok_or_else(|| {
+                                        proto_error(format!(
+                                            "can not get udaf:{} from plugins!",
+                                            udaf_fun_name.to_string()
+                                        ))
+                                    })?;
+                                    let aggregate_udf = &*fun.clone();
+                                    let args: Vec<Arc<dyn PhysicalExpr>> = agg_node.expr
+                                        .iter()
+                                        .map(|e| e.try_into())
+                                        .collect::<Result<Vec<_>, BallistaError>>()?;
 
-                                let args: Vec<Arc<dyn PhysicalExpr>> = agg_node.expr
-                                    .iter()
-                                    .map(|e| e.try_into())
-                                    .collect::<Result<Vec<_>, BallistaError>>()?;
-
-                                Ok(create_aggregate_udf_expr(
-                                    &fun,
-                                    &args,
-                                    &physical_schema,
-                                    name.to_string(),
-                                )?)
+                                    Ok(create_aggregate_udf_expr(
+                                        aggregate_udf,
+                                        &args,
+                                        &physical_schema,
+                                        name.to_string(),
+                                    )?)
+                                } else {
+                                    Err(proto_error(format!(
+                                        "can not found udf plugin!"
+                                    )))
+                                }
                             } // argo engine add end.
                             _ => Err(BallistaError::General(
                                 "Invalid aggregate  expression for HashAggregateExec"
@@ -580,32 +584,37 @@ impl TryFrom<&protobuf::PhysicalExprNode> for Arc<dyn PhysicalExpr> {
             }
             // argo engine add.
             ExprType::ScalarUdfProtoExpr(e) => {
-                let fun =
-                    UDF_PLUGIN_MANAGER
+                let gpm = global_plugin_manager("").lock().unwrap();
+                let plugin_registrar = gpm.plugin_managers.get(&PluginEnum::UDF).unwrap();
+                if let Some(udf_plugin_manager) =
+                    plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
+                {
+                    let fun = udf_plugin_manager
                         .scalar_udfs
                         .get(&e.fun_name)
                         .ok_or_else(|| {
                             proto_error(format!(
-                                "can not get udf:{} from UDF_PLUGIN_MANAGER.scalar_udfs!",
+                                "can not get udf:{} from plugin!",
                                 &e.fun_name.to_owned()
                             ))
                         })?;
-                let fun = fun
-                    .get_scalar_udf_by_name(&e.fun_name.as_str())
-                    .map_err(|e| BallistaError::DataFusionError(e))?;
 
-                let args = e
-                    .expr
-                    .iter()
-                    .map(|x| x.try_into())
-                    .collect::<Result<Vec<_>, _>>()?;
+                    let scalar_udf = &*fun.clone();
+                    let args = e
+                        .expr
+                        .iter()
+                        .map(|x| x.try_into())
+                        .collect::<Result<Vec<_>, _>>()?;
 
-                Arc::new(ScalarUDFExpr::new(
-                    e.fun_name.as_str(),
-                    fun,
-                    args,
-                    &convert_required!(e.return_type)?,
-                ))
+                    Arc::new(ScalarUDFExpr::new(
+                        e.fun_name.as_str(),
+                        scalar_udf.clone(),
+                        args,
+                        &convert_required!(e.return_type)?,
+                    ))
+                } else {
+                    return Err(proto_error(format!("can not found plugin!")));
+                }
             }
             ExprType::AggregateUdfExpr(_) => {
                 return Err(BallistaError::General(

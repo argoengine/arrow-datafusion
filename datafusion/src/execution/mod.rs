@@ -22,7 +22,4 @@ pub mod dataframe_impl;
 pub(crate) mod disk_manager;
 pub(crate) mod memory_manager;
 pub mod options;
-pub mod plugin_manager;
 pub mod runtime_env;
-pub mod udaf_plugin_manager;
-pub mod udf_plugin_manager;

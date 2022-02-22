@@ -39,65 +39,6 @@ use super::{
 };
 use std::sync::Arc;
 
-/// 定义udaf插件，udaf的定义方需要实现该trait
-pub trait UDAFPlugin: Send + Sync + 'static {
-    /// get a aggregate udf by name
-    fn get_aggregate_udf_by_name(&self, fun_name: &str) -> Result<AggregateUDF>;
-
-    /// return all udaf names
-    fn udaf_names(&self) -> Result<Vec<String>>;
-}
-
-/// Every plugin need a UDAFPluginDeclaration
-#[derive(Copy, Clone)]
-pub struct UDAFPluginDeclaration {
-    /// rustc version of the plugin. The plugin's rustc_version need same as plugin manager.
-    pub rustc_version: &'static str,
-
-    /// core version of the plugin. The plugin's core_version need same as plugin manager.
-    pub core_version: &'static str,
-
-    /// `register` is a function which impl UDAFPluginRegistrar. It will be call when plugin load.
-    pub register: unsafe extern "C" fn(&mut dyn UDAFPluginRegistrar),
-}
-
-/// UDAF Plugin Registrar , Define the functions every udaf plugin need impl
-pub trait UDAFPluginRegistrar {
-    /// The udaf plugin need impl this function
-    fn register_udaf_plugin(&mut self, plugin_name: &str, function: Box<dyn UDAFPlugin>);
-}
-
-/// Declare a aggregate udf plugin's name, type and its constructor.
-///
-/// # Notes
-///
-/// This works by automatically generating an `extern "C"` function with a
-/// pre-defined signature and symbol name. And then generating a UDAFPluginDeclaration.
-/// Therefore you will only be able to declare one plugin per library.
-#[macro_export]
-macro_rules! declare_udaf_plugin {
-    ($plugin_name:expr, $plugin_type:ty, $constructor:path) => {
-        #[no_mangle]
-        pub extern "C" fn register_udaf_plugin(
-            registrar: &mut dyn $crate::physical_plan::udaf::UDAFPluginRegistrar,
-        ) {
-            // make sure the constructor is the correct type.
-            let constructor: fn() -> $plugin_type = $constructor;
-            let object = constructor();
-            registrar.register_udaf_plugin($plugin_name, Box::new(object));
-        }
-
-        #[no_mangle]
-        pub static udaf_plugin_declaration:
-            $crate::physical_plan::udaf::UDAFPluginDeclaration =
-            $crate::physical_plan::udaf::UDAFPluginDeclaration {
-                rustc_version: $crate::physical_plan::RUSTC_VERSION,
-                core_version: $crate::physical_plan::CORE_VERSION,
-                register: register_udaf_plugin,
-            };
-    };
-}
-
 /// Logical representation of a user-defined aggregate function (UDAF)
 /// A UDAF is different from a UDF in that it is stateful across batches.
 #[derive(Clone)]

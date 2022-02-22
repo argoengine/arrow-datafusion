@@ -629,10 +629,6 @@ pub trait Accumulator: Send + Sync + Debug {
     fn evaluate(&self) -> Result<ScalarValue>;
 }
 
-/// CARGO_PKG_VERSION
-pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
-/// RUSTC_VERSION
-pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 pub mod aggregates;
 pub mod analyze;
 pub mod array_expressions;

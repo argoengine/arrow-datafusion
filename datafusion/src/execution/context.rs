@@ -77,15 +77,15 @@ use crate::physical_optimizer::merge_exec::AddCoalescePartitionsExec;
 use crate::physical_optimizer::repartition::Repartition;
 
 use crate::execution::runtime_env::{RuntimeConfig, RuntimeEnv};
-use crate::execution::udaf_plugin_manager::UDAF_PLUGIN_MANAGER;
-use crate::execution::udf_plugin_manager::UDF_PLUGIN_MANAGER;
 use crate::logical_plan::plan::Explain;
 use crate::optimizer::single_distinct_to_groupby::SingleDistinctToGroupBy;
 use crate::physical_plan::planner::DefaultPhysicalPlanner;
-use crate::physical_plan::udaf::UDAFPlugin;
-use crate::physical_plan::udf::{ScalarUDF, UDFPlugin};
+use crate::physical_plan::udf::ScalarUDF;
 use crate::physical_plan::ExecutionPlan;
 use crate::physical_plan::PhysicalPlanner;
+use crate::plugin::plugin_manager::global_plugin_manager;
+use crate::plugin::udf::UDFPluginManager;
+use crate::plugin::PluginEnum;
 use crate::sql::{
     parser::{DFParser, FileType},
     planner::{ContextProvider, SqlToRel},
@@ -191,36 +191,33 @@ impl ExecutionContext {
                 scalar_functions: HashMap::new(),
                 var_provider: HashMap::new(),
                 aggregate_functions: HashMap::new(),
-                config,
+                config: config.clone(),
                 execution_props: ExecutionProps::new(),
                 object_store_registry: Arc::new(ObjectStoreRegistry::new()),
                 runtime_env,
             })),
         };
 
+        let gpm = global_plugin_manager(config.plugin_dir.as_str());
+
         // register udf
-        UDF_PLUGIN_MANAGER
-            .scalar_udfs
-            .iter()
-            .for_each(|(udf_name, plugin_proxy)| {
-                context.register_udf(
-                    plugin_proxy
-                        .get_scalar_udf_by_name(udf_name.as_str())
-                        .unwrap(),
-                )
-            });
+        let gpm_guard = gpm.lock().unwrap();
+        let plugin_registrar = gpm_guard.plugin_managers.get(&PluginEnum::UDF).unwrap();
+        if let Some(udf_plugin_manager) =
+            plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
+        {
+            udf_plugin_manager
+                .scalar_udfs
+                .iter()
+                .for_each(|(_, scalar_udf)| context.register_udf((**scalar_udf).clone()));
 
-        // register udaf
-        UDAF_PLUGIN_MANAGER.aggregate_udfs.iter().for_each(
-            |(udaf_name, plugin_proxy)| {
-                context.register_udaf(
-                    plugin_proxy
-                        .get_aggregate_udf_by_name(udaf_name.as_str())
-                        .unwrap(),
-                );
-            },
-        );
-
+            udf_plugin_manager
+                .aggregate_udfs
+                .iter()
+                .for_each(|(_, aggregate_udf)| {
+                    context.register_udaf((**aggregate_udf).clone())
+                });
+        }
         context
     }
 
@@ -930,6 +927,8 @@ pub struct ExecutionConfig {
     parquet_pruning: bool,
     /// Runtime configurations such as memory threshold and local disk for spill
     pub runtime_config: RuntimeConfig,
+    /// plugin dir
+    pub plugin_dir: String,
 }
 
 impl Default for ExecutionConfig {
@@ -965,6 +964,7 @@ impl Default for ExecutionConfig {
             repartition_windows: true,
             parquet_pruning: true,
             runtime_config: RuntimeConfig::default(),
+            plugin_dir: "".to_owned(),
         }
     }
 }
