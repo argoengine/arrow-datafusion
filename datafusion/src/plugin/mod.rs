@@ -79,7 +79,7 @@ macro_rules! declare_plugin {
             // make sure the constructor is the correct type.
             let constructor: fn() -> $curr_plugin_type = $constructor;
             let object = constructor();
-            registrar.register_plugin(Box::new(object));
+            registrar.register_plugin(Box::new(object)).unwrap();
         }
 
         #[no_mangle]
