@@ -83,6 +83,9 @@ use crate::physical_plan::planner::DefaultPhysicalPlanner;
 use crate::physical_plan::udf::ScalarUDF;
 use crate::physical_plan::ExecutionPlan;
 use crate::physical_plan::PhysicalPlanner;
+use crate::plugin::plugin_manager::global_plugin_manager;
+use crate::plugin::udf::UDFPluginManager;
+use crate::plugin::PluginEnum;
 use crate::sql::{
     parser::{DFParser, FileType},
     planner::{ContextProvider, SqlToRel},
@@ -182,18 +185,40 @@ impl ExecutionContext {
         let runtime_env =
             Arc::new(RuntimeEnv::new(config.runtime_config.clone()).unwrap());
 
-        Self {
+        let mut context = Self {
             state: Arc::new(Mutex::new(ExecutionContextState {
                 catalog_list,
                 scalar_functions: HashMap::new(),
                 var_provider: HashMap::new(),
                 aggregate_functions: HashMap::new(),
-                config,
+                config: config.clone(),
                 execution_props: ExecutionProps::new(),
                 object_store_registry: Arc::new(ObjectStoreRegistry::new()),
                 runtime_env,
             })),
+        };
+
+        let gpm = global_plugin_manager(config.plugin_dir.as_str());
+
+        // register udf
+        let gpm_guard = gpm.lock().unwrap();
+        let plugin_registrar = gpm_guard.plugin_managers.get(&PluginEnum::UDF).unwrap();
+        if let Some(udf_plugin_manager) =
+            plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
+        {
+            udf_plugin_manager
+                .scalar_udfs
+                .iter()
+                .for_each(|(_, scalar_udf)| context.register_udf((**scalar_udf).clone()));
+
+            udf_plugin_manager
+                .aggregate_udfs
+                .iter()
+                .for_each(|(_, aggregate_udf)| {
+                    context.register_udaf((**aggregate_udf).clone())
+                });
         }
+        context
     }
 
     /// Creates a dataframe that will execute a SQL query.
@@ -902,6 +927,8 @@ pub struct ExecutionConfig {
     parquet_pruning: bool,
     /// Runtime configurations such as memory threshold and local disk for spill
     pub runtime_config: RuntimeConfig,
+    /// plugin dir
+    pub plugin_dir: String,
 }
 
 impl Default for ExecutionConfig {
@@ -937,6 +964,7 @@ impl Default for ExecutionConfig {
             repartition_windows: true,
             parquet_pruning: true,
             runtime_config: RuntimeConfig::default(),
+            plugin_dir: "".to_owned(),
         }
     }
 }

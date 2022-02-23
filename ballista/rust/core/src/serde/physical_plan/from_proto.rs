@@ -31,6 +31,7 @@ use crate::serde::scheduler::PartitionLocation;
 use crate::serde::{from_proto_binary_op, proto_error, protobuf, str_to_byte};
 use crate::{convert_box_required, convert_required, into_required};
 use chrono::{TimeZone, Utc};
+use datafusion::arrow::compute::eq_dyn;
 use datafusion::arrow::datatypes::{DataType, Schema, SchemaRef};
 use datafusion::catalog::catalog::{
     CatalogList, CatalogProvider, MemoryCatalogList, MemoryCatalogProvider,
@@ -55,6 +56,8 @@ use datafusion::physical_plan::hash_join::PartitionMode;
 use datafusion::physical_plan::metrics::ExecutionPlanMetricsSet;
 use datafusion::physical_plan::planner::DefaultPhysicalPlanner;
 use datafusion::physical_plan::sorts::sort::{SortExec, SortOptions};
+use datafusion::physical_plan::udaf::create_aggregate_expr as create_aggregate_udf_expr;
+use datafusion::physical_plan::udf::{create_physical_expr, ScalarUDFExpr};
 use datafusion::physical_plan::window_functions::{
     BuiltInWindowFunction, WindowFunction,
 };
@@ -79,6 +82,9 @@ use datafusion::physical_plan::{
 use datafusion::physical_plan::{
     AggregateExpr, ColumnStatistics, ExecutionPlan, PhysicalExpr, Statistics, WindowExpr,
 };
+use datafusion::plugin::plugin_manager::global_plugin_manager;
+use datafusion::plugin::udf::UDFPluginManager;
+use datafusion::plugin::PluginEnum;
 use datafusion::prelude::CsvReadOptions;
 use log::debug;
 use protobuf::physical_expr_node::ExprType;
@@ -311,6 +317,37 @@ impl TryInto<Arc<dyn ExecutionPlan>> for &protobuf::PhysicalPlanNode {
                                     name.to_string(),
                                 )?)
                             }
+                            ExprType::AggregateUdfExpr(agg_node) => {
+                                let name = agg_node.fun_name.as_str();
+                                let udaf_fun_name = &name[0..name.find('(').unwrap()];
+                                let gpm = global_plugin_manager("").lock().unwrap();
+                                let plugin_registrar = gpm.plugin_managers.get(&PluginEnum::UDF).unwrap();
+                                if let Some(udf_plugin_manager) = plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
+                                {
+                                    let fun = udf_plugin_manager.aggregate_udfs.get(udaf_fun_name).ok_or_else(|| {
+                                        proto_error(format!(
+                                            "can not get udaf:{} from plugins!",
+                                            udaf_fun_name.to_string()
+                                        ))
+                                    })?;
+                                    let aggregate_udf = &*fun.clone();
+                                    let args: Vec<Arc<dyn PhysicalExpr>> = agg_node.expr
+                                        .iter()
+                                        .map(|e| e.try_into())
+                                        .collect::<Result<Vec<_>, BallistaError>>()?;
+
+                                    Ok(create_aggregate_udf_expr(
+                                        aggregate_udf,
+                                        &args,
+                                        &physical_schema,
+                                        name.to_string(),
+                                    )?)
+                                } else {
+                                    Err(proto_error(format!(
+                                        "can not found udf plugin!"
+                                    )))
+                                }
+                            } // argo engine add end.
                             _ => Err(BallistaError::General(
                                 "Invalid aggregate  expression for HashAggregateExec"
                                     .to_string(),
@@ -545,6 +582,46 @@ impl TryFrom<&protobuf::PhysicalExprNode> for Arc<dyn PhysicalExpr> {
                         .to_owned(),
                 ));
             }
+            // argo engine add.
+            ExprType::ScalarUdfProtoExpr(e) => {
+                let gpm = global_plugin_manager("").lock().unwrap();
+                let plugin_registrar = gpm.plugin_managers.get(&PluginEnum::UDF).unwrap();
+                if let Some(udf_plugin_manager) =
+                    plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
+                {
+                    let fun = udf_plugin_manager
+                        .scalar_udfs
+                        .get(&e.fun_name)
+                        .ok_or_else(|| {
+                            proto_error(format!(
+                                "can not get udf:{} from plugin!",
+                                &e.fun_name.to_owned()
+                            ))
+                        })?;
+
+                    let scalar_udf = &*fun.clone();
+                    let args = e
+                        .expr
+                        .iter()
+                        .map(|x| x.try_into())
+                        .collect::<Result<Vec<_>, _>>()?;
+
+                    Arc::new(ScalarUDFExpr::new(
+                        e.fun_name.as_str(),
+                        scalar_udf.clone(),
+                        args,
+                        &convert_required!(e.return_type)?,
+                    ))
+                } else {
+                    return Err(proto_error(format!("can not found plugin!")));
+                }
+            }
+            ExprType::AggregateUdfExpr(_) => {
+                return Err(BallistaError::General(
+                    "Cannot convert aggregate udf expr node to physical expression"
+                        .to_owned(),
+                ));
+            } // argo engine add end.
             ExprType::WindowExpr(_) => {
                 return Err(BallistaError::General(
                     "Cannot convert window expr node to physical expression".to_owned(),

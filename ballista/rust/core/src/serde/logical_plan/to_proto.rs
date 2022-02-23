@@ -41,6 +41,7 @@ use datafusion::logical_plan::{
 };
 use datafusion::physical_plan::aggregates::AggregateFunction;
 use datafusion::physical_plan::functions::BuiltinScalarFunction;
+use datafusion::physical_plan::udaf::AggregateUDF;
 use datafusion::physical_plan::window_functions::{
     BuiltInWindowFunction, WindowFunction,
 };
@@ -50,6 +51,7 @@ use protobuf::{
     arrow_type, logical_expr_node::ExprType, scalar_type, DateUnit, PrimitiveScalarType,
     ScalarListValue, ScalarType,
 };
+use std::sync::Arc;
 use std::{
     boxed,
     convert::{TryFrom, TryInto},
@@ -563,6 +565,54 @@ impl TryFrom<&datafusion::scalar::ScalarValue> for protobuf::ScalarValue {
                     Value::TimeNanosecondValue(*s)
                 })
             }
+
+            // argo engine add.
+            datafusion::scalar::ScalarValue::Decimal128(val, p, s) => {
+                match *val {
+                    Some(v) => {
+                        let array = v.to_be_bytes();
+                        let vec_val: Vec<u8> = array.to_vec();
+                        protobuf::ScalarValue {
+                            value: Some(Value::Decimal128Value(protobuf::Decimal128 {
+                                value: vec_val,
+                                p: *p as i64,
+                                s: *s as i64,
+                            })),
+                        }
+                    }
+                    None => {
+                        protobuf::ScalarValue {
+                            value: Some(protobuf::scalar_value::Value::NullValue(PrimitiveScalarType::Decimal128 as i32))
+                        }
+                    }
+                }
+            }
+            datafusion::scalar::ScalarValue::Date64(val) => {
+                create_proto_scalar(val, PrimitiveScalarType::Date64, |s| {
+                    Value::Date64Value(*s)
+                })
+            }
+            datafusion::scalar::ScalarValue::TimestampSecond(val, _) => {
+                create_proto_scalar(val, PrimitiveScalarType::TimeSecond, |s| {
+                    Value::TimeSecondValue(*s)
+                })
+            }
+            datafusion::scalar::ScalarValue::TimestampMillisecond(val, _) => {
+                create_proto_scalar(val, PrimitiveScalarType::TimeMillisecond, |s| {
+                    Value::TimeMillisecondValue(*s)
+                })
+            }
+            datafusion::scalar::ScalarValue::IntervalYearMonth(val) => {
+                create_proto_scalar(val, PrimitiveScalarType::IntervalYearmonth, |s| {
+                    Value::IntervalYearmonthValue(*s)
+                })
+            }
+            datafusion::scalar::ScalarValue::IntervalDayTime(val) => {
+                create_proto_scalar(val, PrimitiveScalarType::IntervalDaytime, |s| {
+                    Value::IntervalDaytimeValue(*s)
+                })
+            }
+            // argo engine add end.
             _ => {
                 return Err(proto_error(format!(
                     "Error converting to Datatype to scalar type, {:?} is invalid as a datafusion scalar.",
@@ -1078,8 +1128,40 @@ impl TryInto<protobuf::LogicalExprNode> for &Expr {
                     ),
                 })
             }
-            Expr::ScalarUDF { .. } => unimplemented!(),
-            Expr::AggregateUDF { .. } => unimplemented!(),
+            // argo engine add start
+            Expr::ScalarUDF { ref fun, ref args } => {
+                let args: Vec<protobuf::LogicalExprNode> = args
+                    .iter()
+                    .map(|e| e.try_into())
+                    .collect::<Result<Vec<protobuf::LogicalExprNode>, BallistaError>>()?;
+                Ok(protobuf::LogicalExprNode {
+                    expr_type: Some(
+                        protobuf::logical_expr_node::ExprType::ScalarUdfProtoExpr(
+                            protobuf::ScalarUdfProtoExprNode {
+                                fun_name: fun.name.clone(),
+                                args,
+                            },
+                        ),
+                    ),
+                })
+            }
+            Expr::AggregateUDF { ref fun, ref args } => {
+                let args: Vec<protobuf::LogicalExprNode> = args
+                    .iter()
+                    .map(|e| e.try_into())
+                    .collect::<Result<Vec<protobuf::LogicalExprNode>, BallistaError>>()?;
+                Ok(protobuf::LogicalExprNode {
+                    expr_type: Some(
+                        protobuf::logical_expr_node::ExprType::AggregateUdfExpr(
+                            protobuf::AggregateUdfExprNode {
+                                fun_name: fun.name.clone(),
+                                args,
+                            },
+                        ),
+                    ),
+                })
+            }
+            // argo engine add end
             Expr::Not(expr) => {
                 let expr = Box::new(protobuf::Not {
                     expr: Some(Box::new(expr.as_ref().try_into()?)),

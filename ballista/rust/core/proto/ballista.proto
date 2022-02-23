@@ -80,6 +80,11 @@ message LogicalExprNode {
 
     // window expressions
     WindowExprNode window_expr = 18;
+
+    //ArgoEngineAggregateUDF expressions
+    AggregateUDFExprNode aggregate_udf_expr = 19;
+
+    ScalarUDFProtoExprNode scalar_udf_proto_expr = 20;
   }
 }
 
@@ -517,6 +522,12 @@ message PhysicalExprNode {
 
     // window expressions
     PhysicalWindowExprNode window_expr = 15;
+
+    // argo engine add.
+    PhysicalAggregateUDFExprNode aggregate_udf_expr = 16;
+
+    PhysicalScalarUDFProtoExprNode scalar_udf_proto_expr = 17;
+    // argo engine add end.
   }
 }
 
@@ -524,6 +535,19 @@ message PhysicalAggregateExprNode {
   AggregateFunction aggr_function = 1;
   PhysicalExprNode expr = 2;
 }
+
+// argo engine add.
+message PhysicalAggregateUDFExprNode {
+  string fun_name = 1;
+  repeated PhysicalExprNode expr = 2;
+}
+
+message PhysicalScalarUDFProtoExprNode {
+  string fun_name = 1;
+  repeated PhysicalExprNode expr = 2;
+  ArrowType return_type = 3;
+}
+// argo engine add end.
 
 message PhysicalWindowExprNode {
   oneof window_function {
@@ -977,6 +1001,19 @@ service SchedulerGrpc {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// ArgoEngine add.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+message AggregateUDFExprNode {
+  string fun_name = 1;
+  repeated LogicalExprNode args = 2;
+}
+
+message ScalarUDFProtoExprNode {
+  string fun_name = 1;
+  repeated LogicalExprNode args = 2;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Arrow Data Types
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1085,7 +1122,20 @@ message ScalarValue{
         ScalarType null_list_value = 18;
 
         PrimitiveScalarType null_value = 19;
+        Decimal128 decimal128_value = 20;
+        int64 date_64_value = 21;
+        int64 time_second_value = 22;
+        int64 time_millisecond_value = 23;
+        int32 interval_yearmonth_value = 24;
+        int64 interval_daytime_value = 25;
+
     }
+}
+
+message Decimal128{
+  bytes value = 1;
+  int64 p = 2;
+  int64 s = 3;
 }
 
 // Contains all valid datafusion scalar type except for
@@ -1109,6 +1159,13 @@ enum PrimitiveScalarType{
     TIME_MICROSECOND = 14;
     TIME_NANOSECOND = 15;
     NULL = 16;
+    DECIMAL128 = 17;
+    DATE64 = 20;
+    TIME_SECOND = 21;
+    TIME_MILLISECOND = 22;
+    INTERVAL_YEARMONTH = 23;
+    INTERVAL_DAYTIME = 24;
+
 }
 
 message ScalarType{
