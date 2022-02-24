@@ -83,7 +83,7 @@ use datafusion::physical_plan::{
     AggregateExpr, ColumnStatistics, ExecutionPlan, PhysicalExpr, Statistics, WindowExpr,
 };
 use datafusion::plugin::plugin_manager::global_plugin_manager;
-use datafusion::plugin::udf::UDFPluginManager;
+use datafusion::plugin::udf::{get_udf_plugin_manager, UDFPluginManager};
 use datafusion::plugin::PluginEnum;
 use datafusion::prelude::CsvReadOptions;
 use log::debug;
@@ -320,10 +320,7 @@ impl TryInto<Arc<dyn ExecutionPlan>> for &protobuf::PhysicalPlanNode {
                             ExprType::AggregateUdfExpr(agg_node) => {
                                 let name = agg_node.fun_name.as_str();
                                 let udaf_fun_name = &name[0..name.find('(').unwrap()];
-                                let gpm = global_plugin_manager("").lock().unwrap();
-                                let plugin_registrar = gpm.plugin_managers.get(&PluginEnum::UDF).unwrap();
-                                if let Some(udf_plugin_manager) = plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
-                                {
+                                if let Some(udf_plugin_manager) = get_udf_plugin_manager("") {
                                     let fun = udf_plugin_manager.aggregate_udfs.get(udaf_fun_name).ok_or_else(|| {
                                         proto_error(format!(
                                             "can not get udaf:{} from plugins!",
@@ -584,11 +581,7 @@ impl TryFrom<&protobuf::PhysicalExprNode> for Arc<dyn PhysicalExpr> {
             }
             // argo engine add.
             ExprType::ScalarUdfProtoExpr(e) => {
-                let gpm = global_plugin_manager("").lock().unwrap();
-                let plugin_registrar = gpm.plugin_managers.get(&PluginEnum::UDF).unwrap();
-                if let Some(udf_plugin_manager) =
-                    plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
-                {
+                if let Some(udf_plugin_manager) = get_udf_plugin_manager("") {
                     let fun = udf_plugin_manager
                         .scalar_udfs
                         .get(&e.fun_name)
