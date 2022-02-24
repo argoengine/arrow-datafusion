@@ -1080,11 +1080,7 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
             }
             // argo engine add start
             ExprType::AggregateUdfExpr(expr) => {
-                let gpm = global_plugin_manager("").lock().unwrap();
-                let plugin_registrar = gpm.plugin_managers.get(&PluginEnum::UDF).unwrap();
-                if let Some(udf_plugin_manager) =
-                    plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
-                {
+                if let Some(udf_plugin_manager) = get_udf_plugin_manager("") {
                     let fun = udf_plugin_manager
                         .aggregate_udfs
                         .get(expr.fun_name.as_str())
@@ -1106,11 +1102,7 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
                 }
             }
             ExprType::ScalarUdfProtoExpr(expr) => {
-                let gpm = global_plugin_manager("").lock().unwrap();
-                let plugin_registrar = gpm.plugin_managers.get(&PluginEnum::UDF).unwrap();
-                if let Some(udf_plugin_manager) =
-                    plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
-                {
+                if let Some(udf_plugin_manager) = get_udf_plugin_manager("") {
                     let fun = udf_plugin_manager
                         .scalar_udfs
                         .get(expr.fun_name.as_str())
@@ -1335,7 +1327,7 @@ impl TryInto<Field> for &protobuf::Field {
 use crate::serde::protobuf::ColumnStats;
 use datafusion::physical_plan::{aggregates, windows};
 use datafusion::plugin::plugin_manager::global_plugin_manager;
-use datafusion::plugin::udf::UDFPluginManager;
+use datafusion::plugin::udf::{get_udf_plugin_manager, UDFPluginManager};
 use datafusion::plugin::PluginEnum;
 use datafusion::prelude::{
     array, date_part, date_trunc, length, lower, ltrim, md5, rtrim, sha224, sha256,

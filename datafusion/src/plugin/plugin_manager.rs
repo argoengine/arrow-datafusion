@@ -1,3 +1,19 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
 use crate::error::{DataFusionError, Result};
 use crate::plugin::{PluginDeclaration, CORE_VERSION, RUSTC_VERSION};
 use crate::plugin::{PluginEnum, PluginRegistrar};
@@ -13,11 +29,14 @@ use once_cell::sync::OnceCell;
 /// To prevent the library from being loaded multiple times, we use once_cell defines a Arc<Mutex<GlobalPluginManager>>
 /// Because datafusion is a library, not a service, users may not need to load all plug-ins in the process.
 /// So fn global_plugin_manager return Arc<Mutex<GlobalPluginManager>>. In this way, users can load the required library through the load method of GlobalPluginManager when needed
+static INSTANCE: OnceCell<Arc<Mutex<GlobalPluginManager>>> = OnceCell::new();
+
+/// global_plugin_manager
 pub fn global_plugin_manager(
     plugin_path: &str,
 ) -> &'static Arc<Mutex<GlobalPluginManager>> {
-    static INSTANCE: OnceCell<Arc<Mutex<GlobalPluginManager>>> = OnceCell::new();
     INSTANCE.get_or_init(move || unsafe {
+        println!("====================init===================");
         let mut gpm = GlobalPluginManager::default();
         gpm.load(plugin_path).unwrap();
         Arc::new(Mutex::new(gpm))
@@ -38,6 +57,9 @@ impl GlobalPluginManager {
     /// # Safety
     /// find plugin file from `plugin_path` and load it .
     unsafe fn load(&mut self, plugin_path: &str) -> Result<()> {
+        if "".eq(plugin_path) {
+            return Ok(());
+        }
         // find library file from udaf_plugin_path
         info!("load plugin from dir:{}", plugin_path);
         println!("load plugin from dir:{}", plugin_path);
@@ -54,18 +76,19 @@ impl GlobalPluginManager {
 
             let library = Arc::new(library);
 
-            // get a pointer to the plugin_declaration symbol.
-            let dec = library
-                .get::<*mut PluginDeclaration>(b"plugin_declaration\0")
-                .map_err(|e| {
-                    DataFusionError::IoError(io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("not found plugin_declaration in the library: {}", e),
-                    ))
-                })?
-                .read();
+            let dec = library.get::<*mut PluginDeclaration>(b"plugin_declaration\0");
+            if dec.is_err() {
+                info!(
+                    "not found plugin_declaration in the library: {}",
+                    plugin_file.path().to_str().unwrap()
+                );
+                return Ok(());
+            }
 
-            // version checks to prevent accidental ABI incompatibilities
+            let dec = dec.unwrap().read();
+
+            // ersion checks to prevent accidental ABI incompatibilities
+
             if dec.rustc_version != RUSTC_VERSION || dec.core_version != CORE_VERSION {
                 return Err(DataFusionError::IoError(io::Error::new(
                     io::ErrorKind::Other,
@@ -82,8 +105,7 @@ impl GlobalPluginManager {
                 }
                 Some(manager) => manager,
             };
-
-            (dec.register)(curr_plugin_manager);
+            curr_plugin_manager.load(library)?;
             self.plugin_files
                 .push(plugin_file.path().to_str().unwrap().to_string());
         }
@@ -112,17 +134,20 @@ impl GlobalPluginManager {
             if let Some(path) = item.path().extension() {
                 if let Some(suffix) = path.to_str() {
                     if suffix == "dylib" || suffix == "so" || suffix == "dll" {
-                        info!("load plugin from library file:{}", path.to_str().unwrap());
+                        info!(
+                            "load plugin from library file:{}",
+                            item.path().to_str().unwrap()
+                        );
                         println!(
                             "load plugin from library file:{}",
-                            path.to_str().unwrap()
+                            item.path().to_str().unwrap()
                         );
                         return Some(item);
                     }
                 }
             }
 
-            return None;
+            None
         }) {
             plugin_files.push(entry);
         }

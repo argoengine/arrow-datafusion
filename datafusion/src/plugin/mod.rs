@@ -1,7 +1,26 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 use crate::error::Result;
 use crate::plugin::udf::UDFPluginManager;
+use libloading::Library;
 use std::any::Any;
 use std::env;
+use std::sync::Arc;
 
 /// plugin manager
 pub mod plugin_manager;
@@ -47,17 +66,15 @@ pub struct PluginDeclaration {
 
     /// One of PluginEnum
     pub plugin_type: unsafe extern "C" fn() -> PluginEnum,
-
-    /// `register` is a function which impl PluginRegistrar. It will be call when plugin load.
-    pub register: unsafe extern "C" fn(&mut Box<dyn PluginRegistrar>),
 }
 
 /// Plugin Registrar , Every plugin need implement this trait
 pub trait PluginRegistrar: Send + Sync + 'static {
-    /// The implementer of the plug-in needs to call this interface to report his own information to the plug-in manager
-    fn register_plugin(&mut self, plugin: Box<dyn Plugin>) -> Result<()>;
+    /// # Safety
+    /// load plugin from library
+    unsafe fn load(&mut self, library: Arc<Library>) -> Result<()>;
 
-    /// Returns the plugin registrar as [`Any`](std::any::Any) so that it can be
+    /// Returns the plugin as [`Any`](std::any::Any) so that it can be
     /// downcast to a specific implementation.
     fn as_any(&self) -> &dyn Any;
 }
@@ -66,22 +83,12 @@ pub trait PluginRegistrar: Send + Sync + 'static {
 ///
 /// # Notes
 ///
-/// This works by automatically generating an `extern "C"` function with a
+/// This works by automatically generating an `extern "C"` function named `get_plugin_type` with a
 /// pre-defined signature and symbol name. And then generating a PluginDeclaration.
 /// Therefore you will only be able to declare one plugin per library.
 #[macro_export]
 macro_rules! declare_plugin {
-    ($plugin_type:expr, $curr_plugin_type:ty, $constructor:path) => {
-        #[no_mangle]
-        pub extern "C" fn register_plugin(
-            registrar: &mut Box<dyn $crate::plugin::PluginRegistrar>,
-        ) {
-            // make sure the constructor is the correct type.
-            let constructor: fn() -> $curr_plugin_type = $constructor;
-            let object = constructor();
-            registrar.register_plugin(Box::new(object)).unwrap();
-        }
-
+    ($plugin_type:expr) => {
         #[no_mangle]
         pub extern "C" fn get_plugin_type() -> $crate::plugin::PluginEnum {
             $plugin_type
@@ -93,7 +100,6 @@ macro_rules! declare_plugin {
                 rustc_version: $crate::plugin::RUSTC_VERSION,
                 core_version: $crate::plugin::CORE_VERSION,
                 plugin_type: get_plugin_type,
-                register: register_plugin,
             };
     };
 }

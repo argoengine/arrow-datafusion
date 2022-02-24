@@ -83,9 +83,7 @@ use crate::physical_plan::planner::DefaultPhysicalPlanner;
 use crate::physical_plan::udf::ScalarUDF;
 use crate::physical_plan::ExecutionPlan;
 use crate::physical_plan::PhysicalPlanner;
-use crate::plugin::plugin_manager::global_plugin_manager;
-use crate::plugin::udf::UDFPluginManager;
-use crate::plugin::PluginEnum;
+use crate::plugin::udf::get_udf_plugin_manager;
 use crate::sql::{
     parser::{DFParser, FileType},
     planner::{ContextProvider, SqlToRel},
@@ -198,13 +196,9 @@ impl ExecutionContext {
             })),
         };
 
-        let gpm = global_plugin_manager(config.plugin_dir.as_str());
-
         // register udf
-        let gpm_guard = gpm.lock().unwrap();
-        let plugin_registrar = gpm_guard.plugin_managers.get(&PluginEnum::UDF).unwrap();
         if let Some(udf_plugin_manager) =
-            plugin_registrar.as_any().downcast_ref::<UDFPluginManager>()
+            get_udf_plugin_manager(config.plugin_dir.as_str())
         {
             udf_plugin_manager
                 .scalar_udfs
