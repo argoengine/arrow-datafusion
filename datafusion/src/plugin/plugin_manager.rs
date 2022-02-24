@@ -88,6 +88,7 @@ impl GlobalPluginManager {
             let dec = dec.unwrap().read();
 
             // ersion checks to prevent accidental ABI incompatibilities
+
             if dec.rustc_version != RUSTC_VERSION || dec.core_version != CORE_VERSION {
                 return Err(DataFusionError::IoError(io::Error::new(
                     io::ErrorKind::Other,
