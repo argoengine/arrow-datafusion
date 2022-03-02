@@ -44,6 +44,7 @@ impl PluginRegistrar for UDFPluginManager {
                 .unwrap()
                 .iter()
                 .try_for_each(|udf_name| {
+                    println!("udf_name:{}", udf_name);
                     if self.scalar_udfs.contains_key(udf_name) {
                         Err(DataFusionError::IoError(io::Error::new(
                             io::ErrorKind::Other,
@@ -62,6 +63,7 @@ impl PluginRegistrar for UDFPluginManager {
                 .unwrap()
                 .iter()
                 .try_for_each(|udaf_name| {
+                    println!("udaf_name:{}", udaf_name);
                     if self.aggregate_udfs.contains_key(udaf_name) {
                         Err(DataFusionError::IoError(io::Error::new(
                             io::ErrorKind::Other,
