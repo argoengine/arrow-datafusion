@@ -63,7 +63,7 @@ impl PluginRegistrar for UDFPluginManager {
                     format!("not found fn registrar_udf_plugin in the library: {}", e),
                 ))
             })?;
-
+        println!("1111111111111111111111");
         let udf_plugin: Box<dyn UDFPlugin> = register_fun();
         udf_plugin
             .udf_names()
@@ -128,6 +128,7 @@ macro_rules! declare_udf_plugin {
             // make sure the constructor is the correct type.
             let constructor: fn() -> $curr_plugin_type = $constructor;
             let object = constructor();
+            println!("I be called");
             Box::new(object)
         }
 
