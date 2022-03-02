@@ -127,7 +127,6 @@ macro_rules! declare_udf_plugin {
             // make sure the constructor is the correct type.
             let constructor: fn() -> $curr_plugin_type = $constructor;
             let object = constructor();
-            println!("I be called");
             Box::new(object)
         }
 
