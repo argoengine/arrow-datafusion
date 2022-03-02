@@ -591,7 +591,6 @@ impl TryFrom<&protobuf::PhysicalExprNode> for Arc<dyn PhysicalExpr> {
                                 &e.fun_name.to_owned()
                             ))
                         })?;
-
                     let scalar_udf = &*fun.clone();
                     let args = e
                         .expr

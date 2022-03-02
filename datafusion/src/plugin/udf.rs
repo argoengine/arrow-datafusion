@@ -63,14 +63,15 @@ impl PluginRegistrar for UDFPluginManager {
                     format!("not found fn registrar_udf_plugin in the library: {}", e),
                 ))
             })?;
-
         let udf_plugin: Box<dyn UDFPlugin> = register_fun();
         udf_plugin
             .udf_names()
             .unwrap()
             .iter()
             .try_for_each(|udf_name| {
+                println!("udf_name: {}", udf_name);
                 if self.scalar_udfs.contains_key(udf_name) {
+                    println!("udf_name exists");
                     Err(DataFusionError::IoError(io::Error::new(
                         io::ErrorKind::Other,
                         format!("udf name: {} already exists", udf_name),
@@ -88,7 +89,9 @@ impl PluginRegistrar for UDFPluginManager {
             .unwrap()
             .iter()
             .try_for_each(|udaf_name| {
+                println!("udaf_name: {}", udaf_name);
                 if self.aggregate_udfs.contains_key(udaf_name) {
+                    println!("udaf_name exists");
                     Err(DataFusionError::IoError(io::Error::new(
                         io::ErrorKind::Other,
                         format!("udaf name: {} already exists", udaf_name),
@@ -101,6 +104,7 @@ impl PluginRegistrar for UDFPluginManager {
                     Ok(())
                 }
             })?;
+        self.libraries.push(library);
         Ok(())
     }
 

@@ -62,11 +62,11 @@ impl GlobalPluginManager {
         }
         // find library file from udaf_plugin_path
         info!("load plugin from dir:{}", plugin_path);
-        println!("load plugin from dir:{}", plugin_path);
 
         let plugin_files = self.get_all_plugin_files(plugin_path)?;
 
         for plugin_file in plugin_files {
+            println!("load library :{}", plugin_file.path().to_str().unwrap());
             let library = Library::new(plugin_file.path()).map_err(|e| {
                 DataFusionError::IoError(io::Error::new(
                     io::ErrorKind::Other,
@@ -82,7 +82,7 @@ impl GlobalPluginManager {
                     "not found plugin_declaration in the library: {}",
                     plugin_file.path().to_str().unwrap()
                 );
-                return Ok(());
+                continue;
             }
 
             let dec = dec.unwrap().read();
@@ -90,9 +90,10 @@ impl GlobalPluginManager {
             // ersion checks to prevent accidental ABI incompatibilities
 
             if dec.rustc_version != RUSTC_VERSION || dec.core_version != CORE_VERSION {
+                println!("Version mismatch rustc_version:{}, core_version:{}", RUSTC_VERSION, CORE_VERSION);
                 return Err(DataFusionError::IoError(io::Error::new(
                     io::ErrorKind::Other,
-                    "Version mismatch",
+                    format!("Version mismatch rustc_version:{}, core_version:{}", RUSTC_VERSION, CORE_VERSION),
                 )));
             }
 
@@ -135,10 +136,6 @@ impl GlobalPluginManager {
                 if let Some(suffix) = path.to_str() {
                     if suffix == "dylib" || suffix == "so" || suffix == "dll" {
                         info!(
-                            "load plugin from library file:{}",
-                            item.path().to_str().unwrap()
-                        );
-                        println!(
                             "load plugin from library file:{}",
                             item.path().to_str().unwrap()
                         );
