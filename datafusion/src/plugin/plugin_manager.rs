@@ -66,6 +66,7 @@ impl GlobalPluginManager {
         let plugin_files = self.get_all_plugin_files(plugin_path)?;
 
         for plugin_file in plugin_files {
+            println!("load library :{}", plugin_file.path().to_str().unwrap());
             let library = Library::new(plugin_file.path()).map_err(|e| {
                 DataFusionError::IoError(io::Error::new(
                     io::ErrorKind::Other,
@@ -89,6 +90,7 @@ impl GlobalPluginManager {
             // ersion checks to prevent accidental ABI incompatibilities
 
             if dec.rustc_version != RUSTC_VERSION || dec.core_version != CORE_VERSION {
+                println!("Version mismatch rustc_version:{}, core_version:{}", RUSTC_VERSION, CORE_VERSION);
                 return Err(DataFusionError::IoError(io::Error::new(
                     io::ErrorKind::Other,
                     format!("Version mismatch rustc_version:{}, core_version:{}", RUSTC_VERSION, CORE_VERSION),

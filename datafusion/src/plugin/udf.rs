@@ -71,6 +71,7 @@ impl PluginRegistrar for UDFPluginManager {
             .try_for_each(|udf_name| {
                 println!("udf_name: {}", udf_name);
                 if self.scalar_udfs.contains_key(udf_name) {
+                    println!("udf_name exists");
                     Err(DataFusionError::IoError(io::Error::new(
                         io::ErrorKind::Other,
                         format!("udf name: {} already exists", udf_name),
@@ -90,6 +91,7 @@ impl PluginRegistrar for UDFPluginManager {
             .try_for_each(|udaf_name| {
                 println!("udaf_name: {}", udaf_name);
                 if self.aggregate_udfs.contains_key(udaf_name) {
+                    println!("udaf_name exists");
                     Err(DataFusionError::IoError(io::Error::new(
                         io::ErrorKind::Other,
                         format!("udaf name: {} already exists", udaf_name),
