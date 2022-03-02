@@ -62,7 +62,6 @@ impl GlobalPluginManager {
         }
         // find library file from udaf_plugin_path
         info!("load plugin from dir:{}", plugin_path);
-        println!("load plugin from dir:{}", plugin_path);
 
         let plugin_files = self.get_all_plugin_files(plugin_path)?;
 
@@ -83,7 +82,7 @@ impl GlobalPluginManager {
                     "not found plugin_declaration in the library: {}",
                     plugin_file.path().to_str().unwrap()
                 );
-                return Ok(());
+                continue;
             }
 
             let dec = dec.unwrap().read();
@@ -137,10 +136,6 @@ impl GlobalPluginManager {
                 if let Some(suffix) = path.to_str() {
                     if suffix == "dylib" || suffix == "so" || suffix == "dll" {
                         info!(
-                            "load plugin from library file:{}",
-                            item.path().to_str().unwrap()
-                        );
-                        println!(
                             "load plugin from library file:{}",
                             item.path().to_str().unwrap()
                         );
