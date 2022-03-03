@@ -197,6 +197,7 @@ impl ExecutionContext {
         };
 
         // register udf
+        println!("register udf to context---------------");
         if let Some(udf_plugin_manager) =
             get_udf_plugin_manager(config.plugin_dir.as_str())
         {
@@ -212,6 +213,7 @@ impl ExecutionContext {
                     context.register_udaf((**aggregate_udf).clone())
                 });
         }
+        println!("register udf to context--------success-------");
         context
     }
 

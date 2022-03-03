@@ -136,6 +136,7 @@ macro_rules! declare_udf_plugin {
 
 /// get a Option of Immutable UDFPluginManager
 pub fn get_udf_plugin_manager(path: &str) -> Option<UDFPluginManager> {
+    println!("get_udf_plugin_manager:{}", path);
     let udf_plugin_manager_opt = {
         let gpm = global_plugin_manager(path).lock().unwrap();
         let plugin_registrar_opt = gpm.plugin_managers.get(&PluginEnum::UDF);
