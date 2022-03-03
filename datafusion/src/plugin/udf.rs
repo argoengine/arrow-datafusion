@@ -104,6 +104,7 @@ impl PluginRegistrar for UDFPluginManager {
                     Ok(())
                 }
             })?;
+        self.libraries.push(library);
         Ok(())
     }
 
