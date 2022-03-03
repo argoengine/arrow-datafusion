@@ -328,6 +328,7 @@ impl SchedulerGrpc for SchedulerServer {
         &self,
         request: Request<ExecuteQueryParams>,
     ) -> std::result::Result<Response<ExecuteQueryResult>, tonic::Status> {
+        println!("execute query in scheduler--------------");
         if let ExecuteQueryParams {
             query: Some(query),
             settings,
@@ -347,6 +348,7 @@ impl SchedulerGrpc for SchedulerServer {
             let plan = match query {
                 Query::LogicalPlan(logical_plan) => {
                     // parse protobuf
+                    println!("in ballista logical_plan to proto");
                     (&logical_plan).try_into().map_err(|e| {
                         let msg = format!("Could not parse logical plan protobuf: {}", e);
                         error!("{}", msg);
