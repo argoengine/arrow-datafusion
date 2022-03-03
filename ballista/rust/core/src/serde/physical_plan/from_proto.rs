@@ -581,6 +581,7 @@ impl TryFrom<&protobuf::PhysicalExprNode> for Arc<dyn PhysicalExpr> {
             }
             // argo engine add.
             ExprType::ScalarUdfProtoExpr(e) => {
+                println!("from proto to physical plan----------------");
                 if let Some(udf_plugin_manager) = get_udf_plugin_manager("") {
                     let fun = udf_plugin_manager
                         .scalar_udfs
@@ -591,8 +592,8 @@ impl TryFrom<&protobuf::PhysicalExprNode> for Arc<dyn PhysicalExpr> {
                                 &e.fun_name.to_owned()
                             ))
                         })?;
-
                     let scalar_udf = &*fun.clone();
+                    println!("found udf-------------------");
                     let args = e
                         .expr
                         .iter()

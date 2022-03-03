@@ -1102,6 +1102,7 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
                 }
             }
             ExprType::ScalarUdfProtoExpr(expr) => {
+                println!("from_proto to logical plan-----------------");
                 if let Some(udf_plugin_manager) = get_udf_plugin_manager("") {
                     let fun = udf_plugin_manager
                         .scalar_udfs
@@ -1112,6 +1113,7 @@ impl TryInto<Expr> for &protobuf::LogicalExprNode {
                                 expr.fun_name.to_string()
                             ))
                         })?;
+                    println!("found udf-------------------");
                     let fun_arc = fun.clone();
                     let fun_args = &expr.args;
                     let args: Vec<Expr> = fun_args
