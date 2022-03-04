@@ -27,6 +27,7 @@ use crate::{
             avro::{AvroFormat, DEFAULT_AVRO_EXTENSION},
             csv::{CsvFormat, DEFAULT_CSV_EXTENSION},
             parquet::{ParquetFormat, DEFAULT_PARQUET_EXTENSION},
+            rocksdb::RocksdbFormat,
             FileFormat,
         },
         MemTable,
@@ -101,6 +102,7 @@ use super::{
     options::{AvroReadOptions, CsvReadOptions},
     DiskManager, MemoryManager,
 };
+use crate::arrow::datatypes::{Field, DataType, Schema};
 
 /// ExecutionContext is the main interface for executing queries with DataFusion. The context
 /// provides the following functionality:
@@ -461,6 +463,41 @@ impl ExecutionContext {
             .with_schema(resolved_schema);
         let table = ListingTable::try_new(config)?;
         self.register_table(name, Arc::new(table))?;
+        Ok(())
+    }
+
+    /// Registers a rocksdb data source so that it can be referenced from SQL statements
+    /// executed against this context.
+    pub async fn register_rocksdb(
+        &mut self,
+        name: &str,
+    ) -> Result<()> {
+        // 元数据 实时从元数据服务获取 TODO
+        let field = Field::new("boolvalue", DataType::Boolean, false);
+        let field1 = Field::new("intvalue", DataType::Boolean, false);
+        let schema = Schema::new_with_metadata(vec![field, field1],HashMap::new());
+
+        let file_format = RocksdbFormat::new(schema.clone());
+
+        // 查询选项
+        let listing_options = ListingOptions {
+            format: Arc::new(file_format),
+            collect_stat: false,
+            file_extension: String::new(),
+            target_partitions:self.state.lock().config.target_partitions,
+            table_partition_cols: vec![],
+        };
+
+        // 需要一个数据地址 表的目录
+        let mut uri = String::from(env!("CARGO_MANIFEST_DIR"));
+        uri.push_str("/src/execution/mod.rs");
+        self.register_listing_table(
+            name,
+            uri.as_str(),
+            listing_options,
+            Some(Arc::new(schema.to_owned())),
+        ).await?;
+
         Ok(())
     }
 
@@ -1317,6 +1354,7 @@ mod tests {
     use std::thread::{self, JoinHandle};
     use std::{io::prelude::*, sync::Mutex};
     use tempfile::TempDir;
+    use crate::arrow::util::display::array_value_to_string;
 
     #[tokio::test]
     async fn shared_memory_and_disk_manager() {
@@ -3359,5 +3397,42 @@ mod tests {
             let mut ctx = ExecutionContext::new();
             ctx.read_parquet("dummy").await.unwrap()
         }
+    }
+
+    #[tokio::test]
+    async fn test_register_rocksdb() -> Result<()> {
+        let mut ctx = ExecutionContext::new();
+        let x = ctx.register_rocksdb("tab").await?;
+
+        let df = ctx.sql("select boolvalue from tab").await?;
+
+        let res = df.collect().await;
+        let vec = res.expect("出现错误");
+        let vec1 = collect_answer(&vec);
+        for x in vec1 {
+            println!("{}", x);
+        }
+
+        Ok(())
+    }
+
+    pub fn collect_answer(records: &[RecordBatch]) -> Vec<String> {
+        let mut result = Vec::new();
+
+        if !records.is_empty() {
+            for batch in records {
+                for row in 0..batch.num_rows() {
+                    let mut cells = Vec::new();
+                    for col in 0..batch.num_columns() {
+                        let column = batch.column(col);
+                        cells.push(array_value_to_string(&column, row).unwrap());
+                    }
+
+                    result.push(cells.join("|"));
+                }
+            }
+        }
+
+        result
     }
 }
