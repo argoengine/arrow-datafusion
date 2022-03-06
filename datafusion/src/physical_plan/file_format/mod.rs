@@ -22,6 +22,7 @@ mod csv;
 mod file_stream;
 mod json;
 mod parquet;
+mod rocksdb;
 
 pub use self::parquet::ParquetExec;
 use arrow::{
@@ -34,6 +35,7 @@ use arrow::{
 pub use avro::AvroExec;
 pub use csv::CsvExec;
 pub use json::NdJsonExec;
+pub use rocksdb::RocksdbExec;
 
 use crate::error::DataFusionError;
 use crate::{

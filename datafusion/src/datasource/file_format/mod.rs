@@ -21,6 +21,7 @@ pub mod avro;
 pub mod csv;
 pub mod json;
 pub mod parquet;
+pub mod rocksdb;
 
 use std::any::Any;
 use std::fmt;
